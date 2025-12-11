@@ -1,30 +1,40 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import InputForm from "../components/InputForm";
+import LoadingSection from "../components/LoadingSection";
+import ResultSection from "../components/ResultSection";
 
 export default function Home() {
   const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    fetch("http://127.0.0.1:8000/") 
-      .then((res) => res.json())
-      .then((d) => setData(d))
-      .catch((err) => console.error(err));
-  }, []);
+  const handleGenerate = async (formInput) => {
+    console.log("User input:", formInput);
+
+    setLoading(true);
+
+    setTimeout(() => {
+      setData({
+        blog: "This is a placeholder blog generated without backend.",
+        keywords: ["AI", "Future", "Tech"],
+      });
+      setLoading(false);
+    }, 1500);
+  };
 
   return (
-    <main className="p-10">
-      <h1 className="text-2xl font-bold">Frontend is running</h1>
+    <main className="min-h-screen p-10 text-white bg-neutral-950">
+      <h1 className="text-3xl font-bold text-center mb-10">
+        GenAI Content Creator
+      </h1>
 
-      <div className="mt-4">
-        {data ? (
-          <p className="text-green-500">
-            Backend says: {data.message}
-          </p>
-        ) : (
-          <p className="text-red-500">Waiting for backend...</p>
-        )}
-      </div>
+      <InputForm onGenerate={handleGenerate} />
+
+{loading && <LoadingSection />}
+
+      {data && <ResultSection data={data} />}
+
     </main>
   );
 }
