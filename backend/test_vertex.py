@@ -11,7 +11,7 @@ try:
     print("Connecting to Gemini 2.5 Flash...")
     model = GenerativeModel("gemini-2.5-flash") 
 
-    response = model.generate_content("Explain the langchain chains.")
+    response = model.generate_content("Explain the langchain chains in one sentence.")
     
     print("\n--- Gemini Response ---")
     print(response.text)
