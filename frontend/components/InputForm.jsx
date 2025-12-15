@@ -20,7 +20,6 @@ export default function InputForm({ onGenerate }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 max-w-xl mx-auto">
-      {/* Topic Input */}
       <div>
         <label className="block mb-1 font-medium">Topic</label>
         <input
@@ -32,7 +31,6 @@ export default function InputForm({ onGenerate }) {
         />
       </div>
 
-      {/* Tone Selector */}
       <div>
         <label className="block mb-1 font-medium">Tone</label>
         <select
@@ -48,7 +46,6 @@ export default function InputForm({ onGenerate }) {
         </select>
       </div>
 
-      {/* Length Slider */}
       <div>
         <label className="block mb-1 font-medium">Length: {length} words</label>
         <input
@@ -61,7 +58,6 @@ export default function InputForm({ onGenerate }) {
         />
       </div>
 
-      {/* Generate Button */}
       <button
         type="submit"
         className="w-full py-2 px-4 bg-green-500 text-black rounded font-semibold hover:bg-green-400 transition"

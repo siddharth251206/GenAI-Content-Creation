@@ -4,7 +4,6 @@ export default function LoadingSection() {
       
       <div className="h-6 bg-neutral-700 rounded w-1/3 mb-4"></div>
 
-      {/* Fake paragraphs */}
       <div className="space-y-3">
         <div className="h-4 bg-neutral-700 rounded"></div>
         <div className="h-4 bg-neutral-700 rounded"></div>
