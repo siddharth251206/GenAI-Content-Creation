@@ -54,6 +54,7 @@ export default function InputForm({ onGenerate }) {
             <option value="tweet">Tweet</option>
             <option value="linkedin post">LinkedIn Post</option>
             <option value="email newsletter">Email Newsletter</option>
+            <option value="code">Code</option>
           </select>
         </div>
 
@@ -70,6 +71,8 @@ export default function InputForm({ onGenerate }) {
             <option value="enthusiastic">Enthusiastic</option>
             <option value="serious">Serious</option>
             <option value="casual">Casual</option>
+            <option value="programming">Programming </option>
+
           </select>
         </div>
       </div>
