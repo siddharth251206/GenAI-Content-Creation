@@ -4,97 +4,105 @@ import { useState } from "react";
 
 export default function InputForm({ onGenerate }) {
   const [topic, setTopic] = useState("");
-  const [tone, setTone] = useState("professional"); // Matched default in backend
-  const [contentType, setContentType] = useState("blog post"); // New field
-  const [targetAudience, setTargetAudience] = useState("general audience"); // New field
+  const [tone, setTone] = useState("professional");
+  const [contentType, setContentType] = useState("blog post");
+  const [targetAudience, setTargetAudience] = useState("general audience");
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
     if (!topic.trim()) {
-      alert("Please enter a topic bro 😭");
+      alert("Topic cannot be empty");
       return;
     }
 
-    // Send data matching the Python Schema (camelCase to snake_case conversion happens here or in page.js)
-    // We will send it as simple JS objects and map them in the fetch call
-    onGenerate({ 
-      topic, 
-      tone, 
-      content_type: contentType, 
-      target_audience: targetAudience 
+    onGenerate({
+      topic,
+      tone,
+      content_type: contentType,
+      target_audience: targetAudience,
     });
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 max-w-xl mx-auto bg-neutral-900 p-6 rounded-lg border border-neutral-800">
-      
-      {/* TOPIC */}
+    <form
+      onSubmit={handleSubmit}
+      className="rounded-xl border border-neutral-800 bg-neutral-900/80 backdrop-blur p-6 space-y-6"
+    >
+      {/* Prompt */}
       <div>
-        <label className="block mb-2 text-sm font-medium text-neutral-300">Topic</label>
-        <input
-          type="text"
+        <label className="block text-sm font-medium text-neutral-300 mb-2">
+          Prompt
+        </label>
+        <textarea
           value={topic}
           onChange={(e) => setTopic(e.target.value)}
-          className="w-full p-2.5 rounded bg-neutral-800 border border-neutral-700 text-white focus:ring-2 focus:ring-green-500 outline-none"
-          placeholder="e.g. Future of AI, Digital Marketing..."
+          rows={3}
+          placeholder="Describe what you want the AI to generate…"
+          className="w-full resize-none rounded-md bg-neutral-800 border border-neutral-700 px-3 py-2 text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-green-500"
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        {/* CONTENT TYPE */}
+      {/* Modifiers */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block mb-2 text-sm font-medium text-neutral-300">Content Type</label>
+          <label className="block text-xs font-medium text-neutral-400 mb-1">
+            Content Type
+          </label>
           <select
             value={contentType}
             onChange={(e) => setContentType(e.target.value)}
-            className="w-full p-2.5 rounded bg-neutral-800 border border-neutral-700 text-white focus:ring-2 focus:ring-green-500 outline-none"
+            className="w-full rounded-md bg-neutral-800 border border-neutral-700 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-green-500"
           >
             <option value="blog post">Blog Post</option>
-            <option value="tweet">Tweet</option>
             <option value="linkedin post">LinkedIn Post</option>
+            <option value="tweet">Tweet</option>
             <option value="email newsletter">Email Newsletter</option>
             <option value="code">Code</option>
           </select>
         </div>
 
-        {/* TONE */}
         <div>
-          <label className="block mb-2 text-sm font-medium text-neutral-300">Tone</label>
+          <label className="block text-xs font-medium text-neutral-400 mb-1">
+            Tone
+          </label>
           <select
             value={tone}
             onChange={(e) => setTone(e.target.value)}
-            className="w-full p-2.5 rounded bg-neutral-800 border border-neutral-700 text-white focus:ring-2 focus:ring-green-500 outline-none"
+            className="w-full rounded-md bg-neutral-800 border border-neutral-700 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-green-500"
           >
             <option value="professional">Professional</option>
-            <option value="funny">Funny</option>
-            <option value="enthusiastic">Enthusiastic</option>
             <option value="serious">Serious</option>
+            <option value="enthusiastic">Enthusiastic</option>
             <option value="casual">Casual</option>
-            <option value="programming">Programming </option>
-
+            <option value="programming">Programming</option>
           </select>
         </div>
       </div>
 
-      {/* TARGET AUDIENCE */}
+      {/* Audience */}
       <div>
-        <label className="block mb-2 text-sm font-medium text-neutral-300">Target Audience</label>
+        <label className="block text-xs font-medium text-neutral-400 mb-1">
+          Target Audience
+        </label>
         <input
           type="text"
           value={targetAudience}
           onChange={(e) => setTargetAudience(e.target.value)}
-          className="w-full p-2.5 rounded bg-neutral-800 border border-neutral-700 text-white focus:ring-2 focus:ring-green-500 outline-none"
-          placeholder="e.g. Developers, Students, CEOs..."
+          placeholder="e.g. Developers, founders, students"
+          className="w-full rounded-md bg-neutral-800 border border-neutral-700 px-3 py-2 text-sm text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-green-500"
         />
       </div>
 
-      <button
-        type="submit"
-        className="w-full py-3 px-4 bg-green-500 text-black rounded font-bold hover:bg-green-400 transition transform active:scale-95"
-      >
-        ✨ Generate Content
-      </button>
+      {/* Action */}
+      <div className="pt-2">
+        <button
+          type="submit"
+          className="w-full rounded-md bg-green-500 py-2.5 text-sm font-semibold text-black hover:bg-green-400 transition active:scale-[0.98]"
+        >
+          Generate
+        </button>
+      </div>
     </form>
   );
 }

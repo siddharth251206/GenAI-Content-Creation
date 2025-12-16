@@ -8,84 +8,80 @@ import ResultSection from "../components/ResultSection";
 export default function Home() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null); // New state for error handling
+  const [error, setError] = useState(null);
 
   const handleGenerate = async (formInput) => {
-    console.log("Sending to Backend:", formInput);
-    
-    // Reset states
     setLoading(true);
     setData(null);
     setError(null);
 
     try {
-      // 1. Call the API
       const response = await fetch("http://127.0.0.1:8000/api/generate", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formInput),
       });
 
-      // 2. Check for errors
       if (!response.ok) {
-        throw new Error(`Server Error: ${response.status}`);
+        throw new Error(`Server error ${response.status}`);
       }
 
-      // 3. Get Data
       const result = await response.json();
-      console.log("Backend Response:", result);
-      
-      // 4. Update UI
-      setData(result); // result is { answer: "..." }
-
+      setData(result);
     } catch (err) {
-      console.error("Failed to generate:", err);
-      setError("Failed to connect to the brain 🧠. Is the backend running?");
+      setError("Backend is unreachable. Is FastAPI running?");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <main className="min-h-screen p-8 md:p-20 text-white bg-neutral-950 font-sans">
-      <div className="max-w-5xl mx-auto">
-        
-        {/* Header */}
-        <div className="text-center mb-12">
-          <h1 className="text-5xl font-extrabold bg-gradient-to-r from-green-400 to-blue-500 bg-clip-text text-transparent mb-4">
-            GenAI Content Platform
+    <main className="min-h-screen bg-neutral-950 text-white font-sans">
+      
+      {/* Top Bar */}
+      <header className="border-b border-neutral-800 bg-neutral-900/80 backdrop-blur">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+          <h1 className="text-lg font-semibold tracking-wide">
+            GenAI Studio
           </h1>
-          <p className="text-neutral-400 text-lg">
-            Powered by LangChain, Pinecone & Google Gemini
-          </p>
+          <span className="text-xs text-neutral-400">
+            AI-assisted content creation
+          </span>
+        </div>
+      </header>
+
+      {/* Main Editor Area */}
+      <section className="max-w-7xl mx-auto px-6 py-10">
+
+        {/* Prompt Panel */}
+        <div className="max-w-2xl mb-12">
+          <InputForm onGenerate={handleGenerate} />
         </div>
 
-        {/* Input Form */}
-        <InputForm onGenerate={handleGenerate} />
-
-        {/* Loading State */}
+        {/* System State */}
         {loading && (
-          <div className="mt-10">
+          <div className="mb-10">
             <LoadingSection />
-            <p className="text-center text-neutral-500 mt-4 animate-pulse">
-              Consulting the knowledge base...
+            <p className="mt-4 text-sm text-neutral-500">
+              Generating content — this may take a moment…
             </p>
           </div>
         )}
 
-        {/* Error State */}
         {error && (
-          <div className="mt-10 p-4 bg-red-900/30 border border-red-800 rounded text-red-200 text-center">
+          <div className="mb-10 p-4 border border-red-800 bg-red-900/20 text-red-300 rounded">
             {error}
           </div>
         )}
 
-        {/* Result State */}
-        {data && <ResultSection data={data} />}
-        
-      </div>
+        {/* Output Canvas */}
+        {data && (
+          <div className="mt-8">
+            <ResultSection data={data} />
+          </div>
+        )}
+
+      </section>
     </main>
   );
 }

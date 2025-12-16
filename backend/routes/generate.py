@@ -36,7 +36,7 @@ async def generate_content(request: GenerateRequest):
             template = """You are a Senior Software Engineer.
             TASK: Write code for: "{topic}".
             Tone: {tone}
-            INSTRUCTION: Provide ONLY code and technical explanation. Ignore context if it's not technical documentation.
+            INSTRUCTION: Provide ONLY code and technical explanation. Ignore context if it's not technical documentation. 
             CONTEXT: {context}
             CODE:"""
         else:
