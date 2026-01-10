@@ -1,87 +1,72 @@
 "use client";
 
 import { useState } from "react";
-import InputForm from "../components/InputForm";
-import LoadingSection from "../components/LoadingSection";
-import ResultSection from "../components/ResultSection";
+import LoginButton from "@/components/LoginButton"; // Use this, not Auth.jsx
+import InputForm from "@/components/InputForm";
+import ResultSection from "@/components/ResultSection";
+import LoadingSection from "@/components/LoadingSection";
+import { useAuth } from "@/context/AuthContext";
 
 export default function Home() {
-  const [data, setData] = useState(null);
+  const { user } = useAuth();
+  
+  // State to manage the flow
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [resultData, setResultData] = useState(null);
 
-  const handleGenerate = async (formInput) => {
+  const handleGenerate = async (formData) => {
     setLoading(true);
-    setData(null);
-    setError(null);
+    setResultData(null); // Reset previous results
 
     try {
+      // Call your Backend API here
       const response = await fetch("http://127.0.0.1:8000/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formInput),
+        body: JSON.stringify(formData),
       });
-
-      if (!response.ok) {
-        throw new Error(`Server error ${response.status}`);
-      }
-
-      const result = await response.json();
-      setData(result);
-    } catch (err) {
-      setError("Backend is unreachable. Is FastAPI running?");
+      
+      const data = await response.json();
+      setResultData(data); // Pass backend response to ResultSection
+    } catch (error) {
+      console.error("Error generating:", error);
+      alert("Something went wrong!");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <main className="min-h-screen bg-neutral-950 text-white font-sans">
-      
-      {/* Top Bar */}
-      <header className="border-b border-neutral-800 bg-neutral-900/80 backdrop-blur">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <h1 className="text-lg font-semibold tracking-wide">
-            GenAI Studio
-          </h1>
-          <span className="text-xs text-neutral-400">
-            AI-assisted content creation
-          </span>
-        </div>
-      </header>
+    <main className="min-h-screen bg-black text-white p-8">
+      {/* 1. Header & Auth */}
+      <div className="flex justify-between items-center mb-12">
+        <h1 className="text-3xl font-bold bg-gradient-to-r from-green-400 to-blue-500 bg-clip-text text-transparent">
+          AI Content Gen
+        </h1>
+        <LoginButton />
+      </div>
 
-      {/* Main Editor Area */}
-      <section className="max-w-7xl mx-auto px-6 py-10">
+      {/* 2. Main Content Area */}
+      <div className="max-w-5xl mx-auto">
+        
+        {/* Only show form if user is logged in (Optional) */}
+        {user ? (
+          <>
+            <InputForm onGenerate={handleGenerate} />
 
-        {/* Prompt Panel */}
-        <div className="max-w-2xl mb-12">
-          <InputForm onGenerate={handleGenerate} />
-        </div>
+            {loading && <LoadingSection />}
 
-        {/* System State */}
-        {loading && (
-          <div className="mb-10">
-            <LoadingSection />
-            <p className="mt-4 text-sm text-neutral-500">
-              Generating content — this may take a moment…
-            </p>
+            {/* Show ResultSection only when we have data */}
+            {resultData && !loading && (
+              <ResultSection data={resultData} />
+            )}
+          </>
+        ) : (
+          <div className="text-center mt-20 text-neutral-400">
+            Please sign in to generate content.
           </div>
         )}
-
-        {error && (
-          <div className="mb-10 p-4 border border-red-800 bg-red-900/20 text-red-300 rounded">
-            {error}
-          </div>
-        )}
-
-        {/* Output Canvas */}
-        {data && (
-          <div className="mt-8">
-            <ResultSection data={data} />
-          </div>
-        )}
-
-      </section>
+      </div>
     </main>
   );
 }
