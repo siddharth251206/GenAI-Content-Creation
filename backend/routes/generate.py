@@ -1,6 +1,6 @@
 import os
 from fastapi import APIRouter, HTTPException
-from models.schemas import GenerateRequest, GenerateResponse
+from models.schemas import GenerateRequest, GenerateResponse, RegenerateRequest, RegenerateResponse
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
@@ -8,76 +8,69 @@ from services.vector_service import VectorService
 
 router = APIRouter()
 
-# --- INITIALIZATION ---
 try:
     vs = VectorService()
     retriever = vs.vector_store.as_retriever(search_kwargs={"k": 5})
-    
-    llm = ChatGoogleGenerativeAI(
-        model="gemini-2.5-flash",
-        project=os.getenv("GOOGLE_CLOUD_PROJECT")
-    )
+    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", project=os.getenv("GOOGLE_CLOUD_PROJECT"))
 except Exception as e:
-    print(f"Server Startup Error: {e}")
+    print(f"Startup Error: {e}")
 
-# --- THE ENDPOINT ---
 @router.post("/generate", response_model=GenerateResponse)
 async def generate_content(request: GenerateRequest):
-    print(f"Generating {request.tone} {request.content_type} about {request.topic}")
-    
+    print(f"Generating {request.topic}...")
     try:
-        # 1. Retrieve Context
         relevant_docs = retriever.invoke(request.topic)
         context_text = "\n\n".join([d.page_content for d in relevant_docs])
         
-        # 2. SELECT PROMPT
-        if request.content_type.lower().strip() == "code":
-            # (Developer Persona - kept clean)
-            template = """You are a Senior Software Engineer.
-            TASK: Write code for: "{topic}".
-            Tone: {tone}
-            INSTRUCTION: Provide ONLY code and technical explanation. Ignore context if it's not technical documentation. 
-            CONTEXT: {context}
-            CODE:"""
-        else:
-            # --- SOCIAL MEDIA PERSONA (UPDATED) ---
-            template = """You are an expert content creator.
-            
-            YOUR TASK:
-            Write a {content_type} about the topic: "{topic}".
-            
-            CRITICAL INSTRUCTION ON CONTEXT:
-            I have provided some context below from a knowledge base.
-            1. Analyze the Context.
-            2. If the Context is about a SPECIFIC person/project (e.g., Siddharth) and the Topic is UNRELATED (e.g., Andrew Tate, Elon Musk, General History), **IGNORE THE CONTEXT COMPLETELY**.
-            3. Only use the context if it matches the user's topic.
-            
-            Tone: {tone}
-            Audience: {audience}
-            
-            CONTEXT:
-            {context}
-            
-            CONTENT:
-            """
+        template = """You are an expert content creator.
+        Topic: {topic}
+        Tone: {tone}
+        Context: {context}
+        
+        Write a {content_type}. If context is irrelevant, ignore it.
+        """
         
         prompt = ChatPromptTemplate.from_template(template)
-
-        # 3. The Chain
         chain = prompt | llm | StrOutputParser()
         
-        # 4. Invoke
         result = chain.invoke({
             "context": context_text,
             "topic": request.topic,
             "content_type": request.content_type,
-            "tone": request.tone,
-            "audience": request.target_audience
+            "tone": request.tone
         })
 
-        # No DB saving here since you haven't set it up yet
-        return GenerateResponse(answer=result)
+        # PASS THE TOPIC BACK
+        return GenerateResponse(answer=result, topic=request.topic)
 
     except Exception as e:
-        print(f"Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# --- NEW: REGENERATE ENDPOINT ---
+@router.post("/regenerate", response_model=RegenerateResponse)
+async def regenerate_selection(request: RegenerateRequest):
+    print(f"Regenerating text with instruction: {request.instruction}")
+    
+    try:
+        template = """
+        You are a professional editor.
+        TASK: Rewrite the 'Selected Text' according to the 'Instruction'.
+        
+        Selected Text: "{selected_text}"
+        Instruction: {instruction}
+        
+        Return ONLY the rewritten text. Do not add quotes or explanations.
+        """
+        
+        prompt = ChatPromptTemplate.from_template(template)
+        chain = prompt | llm | StrOutputParser()
+        
+        result = chain.invoke({
+            "selected_text": request.selected_text,
+            "instruction": request.instruction
+        })
+        
+        return RegenerateResponse(updated_text=result)
+        
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
