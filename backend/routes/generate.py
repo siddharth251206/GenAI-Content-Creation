@@ -29,11 +29,12 @@ try:
     vs = VectorService()
     retriever = vs.vector_store.as_retriever(search_kwargs={"k": 5})
 
-    # 2. Gemini Chat Model (With Manual Auth Fix)
+    # 2. Gemini Chat Model (With Manual Auth & Scope Fix)
     google_creds_json = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
     if google_creds_json:
         creds_dict = json.loads(google_creds_json)
         
+        # 🚨 FIX: Add the scope here!
         creds = service_account.Credentials.from_service_account_info(
             creds_dict,
             scopes=["https://www.googleapis.com/auth/cloud-platform"]
@@ -61,12 +62,11 @@ async def generate_content(
 
     print(f"Generating {request.topic} for user {user['uid']}...")
     try:
-        # Retrieve context (This might return irrelevant project files)
+        # Retrieve context (May include irrelevant files)
         relevant_docs = retriever.invoke(request.topic)
         context_text = "\n\n".join([d.page_content for d in relevant_docs])
         
-        # --- 🚨 PROMPT FIX HERE 🚨 ---
-        # We explicitly tell the AI to JUDGE the context first.
+        # --- 🚨 PROMPT FIX TO IGNORE BAD CONTEXT 🚨 ---
         template = """You are an expert content creator.
         
         === RETRIEVED CONTEXT (May be irrelevant) ===
@@ -80,9 +80,8 @@ async def generate_content(
         
         STRICT INSTRUCTIONS:
         1. Analyze the 'RETRIEVED CONTEXT'. 
-        2. If the context is NOT directly related to the Topic (e.g., if the topic is "Skin Care" but the context is about "Software code" or "Project settings"), IGNORE THE CONTEXT COMPLETELY.
-        3. Do NOT mention "Pinecone", "Vertex AI", "Siddharth", or this software project unless the User Request specifically asks for it.
-        4. Write a high-quality {content_type} based on the topic.
+        2. If the context is NOT directly related to the Topic (e.g., if it's about software code, project settings, or 'Siddharth'), IGNORE IT COMPLETELY.
+        3. Write a high-quality {content_type} based on the topic.
         """
         
         prompt = ChatPromptTemplate.from_template(template)

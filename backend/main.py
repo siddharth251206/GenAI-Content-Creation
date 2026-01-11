@@ -11,23 +11,30 @@ load_dotenv()
 # --- 1. FIREBASE INIT ---
 if not firebase_admin._apps:
     try:
-        # Use only the FIREBASE_SERVICE_ACCOUNT variable
+        # Check for the Environment Variable first (Render/Production)
         firebase_json = os.environ.get("FIREBASE_SERVICE_ACCOUNT")
         
         if firebase_json:
-            # Parse the JSON string into a dict
+            # Parse the JSON string
             cred_dict = json.loads(firebase_json)
-            # Initialize Firebase with the dictionary (no file needed)
             cred = credentials.Certificate(cred_dict)
             firebase_admin.initialize_app(cred)
             print("✅ Firebase initialized from FIREBASE_SERVICE_ACCOUNT")
+        
+        # Fallback to local file (Local Development)
+        elif os.path.exists("serviceAccountKey.json"):
+            cred = credentials.Certificate("serviceAccountKey.json")
+            firebase_admin.initialize_app(cred)
+            print("✅ Firebase initialized with serviceAccountKey.json")
+            
         else:
-            print("❌ FIREBASE_SERVICE_ACCOUNT not found in environment!")
+            print("⚠️ No credentials found. Using Default...")
+            cred = credentials.ApplicationDefault()
+            firebase_admin.initialize_app(cred)
 
     except Exception as e:
         print(f"❌ Firebase Init Error: {e}")
 
-# --- 2. IMPORT ROUTERS ---
 from routes import generate, images, history
 
 app = FastAPI()
