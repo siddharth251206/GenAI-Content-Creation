@@ -1,46 +1,29 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import dynamic from "next/dynamic"; // 1. Import dynamic
-import { Wand2, Image as ImageIcon, RefreshCw, Check } from "lucide-react";
+import dynamic from "next/dynamic";
+import { Wand2, Image as ImageIcon, RefreshCw, Check, Copy, Download, RotateCw } from "lucide-react";
 
-// 2. Dynamically import CKEditor so it ONLY loads on the browser
-// This prevents the "window is not defined" error
+// Dynamically load Editor
 const CustomEditor = dynamic(
   async () => {
     const { CKEditor } = await import("@ckeditor/ckeditor5-react");
     const ClassicEditor = await import("@ckeditor/ckeditor5-build-classic");
-    
-    return (props) => (
-      <CKEditor
-        editor={ClassicEditor.default}
-        {...props}
-      />
-    );
+    return (props) => <CKEditor editor={ClassicEditor.default} {...props} />;
   },
-  { 
-    ssr: false, // Disable server-side rendering for this component
-    loading: () => <div className="p-10 text-neutral-400">Loading Editor...</div>
-  }
+  { ssr: false, loading: () => <div className="p-8 text-slate-400">Loading Editor...</div> }
 );
 
-export default function ResultSection({ data }) {
+export default function ResultSection({ data, onRegenerate }) {
   const [editorData, setEditorData] = useState(data.answer || "");
   const [editorInstance, setEditorInstance] = useState(null);
-  
-  // Image State
   const [images, setImages] = useState([]);
   const [loadingImages, setLoadingImages] = useState(false);
-  
-  // Regeneration State
   const [selectedText, setSelectedText] = useState("");
   const [isRegenerating, setIsRegenerating] = useState(false);
 
-  // 1. Fetch Images when component mounts
   useEffect(() => {
-    if (data.topic) {
-      fetchImages(data.topic);
-    }
+    if (data.topic) fetchImages(data.topic);
   }, [data.topic]);
 
   const fetchImages = async (topic) => {
@@ -54,171 +37,179 @@ export default function ResultSection({ data }) {
       const result = await res.json();
       setImages(result.images || []);
     } catch (err) {
-      console.error("Failed to load images", err);
+      console.error(err);
     } finally {
       setLoadingImages(false);
     }
   };
 
-  // 2. Insert Image into Editor
   const insertImage = (url) => {
     if (!editorInstance) return;
-    
     editorInstance.model.change((writer) => {
-      // Insert image at current selection
       const imageElement = writer.createElement("imageBlock", { src: url });
       editorInstance.model.insertContent(imageElement, editorInstance.model.document.selection);
     });
   };
 
-  // 3. Handle Text Selection
   const handleSelectionChange = (editor) => {
     const selection = editor.model.document.selection;
     const range = selection.getFirstRange();
     let text = "";
-    
     for (const item of range.getItems()) {
-      if (item.is("textProxy")) {
-        text += item.data;
-      }
+      if (item.is("textProxy")) text += item.data;
     }
     setSelectedText(text);
   };
 
-  // 4. Regenerate Selected Text
-  const handleRegenerate = async (instruction) => {
+  const handleSmartRegenerate = async (instruction) => {
     if (!selectedText) return;
     setIsRegenerating(true);
-
     try {
       const res = await fetch("http://127.0.0.1:8000/api/regenerate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          selected_text: selectedText,
-          instruction: instruction, 
-        }),
+        body: JSON.stringify({ selected_text: selectedText, instruction }),
       });
-      
       const result = await res.json();
-      
-      // Replace text in editor
       editorInstance.model.change((writer) => {
         const selection = editorInstance.model.document.selection;
         const range = selection.getFirstRange();
-        editorInstance.model.insertContent(
-          writer.createText(result.updated_text),
-          range
-        );
+        editorInstance.model.insertContent(writer.createText(result.updated_text), range);
       });
-      
     } catch (err) {
-      console.error("Regeneration failed", err);
+      console.error(err);
     } finally {
       setIsRegenerating(false);
     }
   };
 
+  // --- ACTIONS ---
+  const handleCopy = () => {
+    const plainText = editorData.replace(/<[^>]+>/g, ''); // Simple strip HTML
+    navigator.clipboard.writeText(plainText);
+    alert("Content copied to clipboard!");
+  };
+
+  const handleExport = () => {
+    const element = document.createElement("a");
+    const file = new Blob([editorData], {type: 'text/markdown'});
+    element.href = URL.createObjectURL(file);
+    element.download = "generated-content.md";
+    document.body.appendChild(element); // Required for this to work in FireFox
+    element.click();
+  };
+
   return (
-    <section className="mt-12 flex flex-col lg:flex-row gap-6 h-[800px]">
+    <section className="flex flex-col lg:flex-row gap-8 h-[850px] animate-in fade-in duration-700">
       
-      {/* --- LEFT: EDITOR AREA --- */}
-      <div className="flex-1 flex flex-col border border-neutral-800 rounded-xl bg-neutral-900 overflow-hidden">
+      {/* --- EDITOR AREA --- */}
+      <div className="flex-1 flex flex-col bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden relative">
         
-        {/* Editor Toolbar (Custom Actions) */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800 bg-neutral-900">
-          <span className="text-xs font-bold text-neutral-400 uppercase tracking-wider">
-            Smart Editor
-          </span>
+        {/* Top Toolbar */}
+        <div className="flex items-center justify-between px-6 py-3 border-b border-slate-100 bg-white">
+          <div className="flex items-center gap-2">
+             <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">AI Editor</span>
+          </div>
           
           <div className="flex gap-2">
             {selectedText && (
-              <>
-                <button 
-                  onClick={() => handleRegenerate("Make it funnier")}
-                  disabled={isRegenerating}
-                  className="flex items-center gap-2 px-3 py-1.5 text-xs bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 rounded hover:bg-indigo-600/30 transition"
-                >
-                  <Wand2 size={12} /> Make Funny
+              <div className="flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
+                <button onClick={() => handleSmartRegenerate("Make it funnier")} disabled={isRegenerating} className="btn-toolbar text-indigo-600 bg-indigo-50 border-indigo-100">
+                  <Wand2 size={12} /> Funny
                 </button>
-                <button 
-                  onClick={() => handleRegenerate("Expand and explain detailed")}
-                  disabled={isRegenerating}
-                  className="flex items-center gap-2 px-3 py-1.5 text-xs bg-green-600/20 text-green-300 border border-green-500/30 rounded hover:bg-green-600/30 transition"
-                >
+                <button onClick={() => handleSmartRegenerate("Expand detailed")} disabled={isRegenerating} className="btn-toolbar text-emerald-600 bg-emerald-50 border-emerald-100">
                   <RefreshCw size={12} className={isRegenerating ? "animate-spin" : ""} /> Expand
                 </button>
-                 <button 
-                  onClick={() => handleRegenerate("Rewrite professionally")}
-                  disabled={isRegenerating}
-                  className="flex items-center gap-2 px-3 py-1.5 text-xs bg-blue-600/20 text-blue-300 border border-blue-500/30 rounded hover:bg-blue-600/30 transition"
-                >
-                  Rewrite
-                </button>
-              </>
+              </div>
             )}
           </div>
         </div>
 
-        {/* CKEditor Instance (Wrapped in CustomEditor) */}
-        <div className="flex-1 overflow-y-auto text-black custom-editor-wrapper">
+        {/* Editor Instance */}
+        <div className="flex-1 overflow-y-auto">
           <CustomEditor
             data={editorData}
             onReady={(editor) => {
               setEditorInstance(editor);
               editor.model.document.selection.on("change", () => handleSelectionChange(editor));
             }}
-            onChange={(event, editor) => {
-              setEditorData(editor.getData());
-            }}
+            onChange={(event, editor) => setEditorData(editor.getData())}
           />
+        </div>
+
+        {/* Bottom Action Bar (Floating) */}
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-slate-900/90 backdrop-blur text-white p-1.5 rounded-xl shadow-xl transition hover:scale-105">
+           <button 
+             onClick={handleCopy}
+             className="flex items-center gap-2 px-4 py-2 hover:bg-white/10 rounded-lg text-sm font-medium transition"
+           >
+             <Copy size={16} /> Copy
+           </button>
+           <div className="w-px h-4 bg-white/20"></div>
+           <button 
+             onClick={handleExport}
+             className="flex items-center gap-2 px-4 py-2 hover:bg-white/10 rounded-lg text-sm font-medium transition"
+           >
+             <Download size={16} /> Export
+           </button>
+           <div className="w-px h-4 bg-white/20"></div>
+           <button 
+             onClick={onRegenerate}
+             className="flex items-center gap-2 px-4 py-2 hover:bg-white/10 rounded-lg text-sm font-medium transition text-indigo-300"
+           >
+             <RotateCw size={16} /> Regenerate
+           </button>
         </div>
       </div>
 
-      {/* --- RIGHT: ASSETS SIDEBAR --- */}
-      <div className="w-full lg:w-64 flex flex-col border border-neutral-800 rounded-xl bg-neutral-900 overflow-hidden">
-        <div className="px-4 py-3 border-b border-neutral-800 bg-neutral-900 flex items-center gap-2 text-neutral-300">
-          <ImageIcon size={14} />
+      {/* --- SIDEBAR --- */}
+      <div className="w-full lg:w-72 flex flex-col bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2 text-slate-700">
+          <ImageIcon size={16} />
           <span className="text-sm font-semibold">Stock Images</span>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/30">
           {loadingImages ? (
-            <div className="text-xs text-neutral-500 animate-pulse">Finding perfect images...</div>
+            <div className="text-center py-10 space-y-2">
+               <div className="animate-spin w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full mx-auto"/>
+               <p className="text-xs text-slate-400">Curating visuals...</p>
+            </div>
           ) : images.length > 0 ? (
             images.map((url, idx) => (
               <div 
                 key={idx} 
-                className="group relative rounded-lg overflow-hidden border border-neutral-800 cursor-pointer hover:border-green-500 transition"
+                className="group relative rounded-xl overflow-hidden shadow-sm border border-slate-200 cursor-pointer hover:shadow-md transition-all hover:scale-[1.02]"
                 onClick={() => insertImage(url)}
               >
                 <img src={url} alt="Stock" className="w-full h-32 object-cover" />
-                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition">
-                  <span className="text-xs text-white font-medium flex items-center gap-1">
-                    <Check size={12} /> Insert
+                <div className="absolute inset-0 bg-indigo-900/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all backdrop-blur-[2px]">
+                  <span className="px-3 py-1.5 bg-white text-indigo-600 text-xs font-bold rounded-full flex items-center gap-1 shadow-lg">
+                    <Check size={12} /> Add
                   </span>
                 </div>
               </div>
             ))
           ) : (
-            <div className="text-xs text-neutral-600 text-center">
-              No images found.
-            </div>
+             <p className="text-xs text-slate-400 text-center py-10">No images found.</p>
           )}
         </div>
       </div>
 
-      {/* CSS Override for CKEditor Dark Mode */}
       <style jsx global>{`
-        .ck-editor__editable {
-          min-height: 600px;
-          background-color: #f5f5f5 !important;
-          color: #333 !important;
-          padding: 2rem !important;
+        .btn-toolbar {
+          @apply flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border rounded-md transition hover:brightness-95;
         }
-        .ck-toolbar {
-          background-color: #f5f5f5 !important;
-          border-bottom: 1px solid #ddd !important;
+        .ck-editor__editable {
+          min-height: 800px;
+          padding: 3rem !important;
+          font-family: ui-sans-serif, system-ui, sans-serif !important;
+          color: #1e293b !important;
+        }
+        .ck.ck-toolbar {
+          border: none !important;
+          background: white !important;
         }
       `}</style>
     </section>

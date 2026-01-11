@@ -1,108 +1,103 @@
 "use client";
 
 import { useState } from "react";
+import { Send, Zap } from "lucide-react";
 
-export default function InputForm({ onGenerate }) {
+export default function InputForm({ onGenerate, loading }) {
   const [topic, setTopic] = useState("");
   const [tone, setTone] = useState("professional");
   const [contentType, setContentType] = useState("blog post");
-  const [targetAudience, setTargetAudience] = useState("general audience");
+  const [targetAudience, setTargetAudience] = useState("");
 
   const handleSubmit = (e) => {
     e.preventDefault();
-
-    if (!topic.trim()) {
-      alert("Topic cannot be empty");
-      return;
-    }
-
-    onGenerate({
-      topic,
-      tone,
-      content_type: contentType,
-      target_audience: targetAudience,
-    });
+    if (!topic.trim()) return;
+    onGenerate({ topic, tone, content_type: contentType, target_audience: targetAudience });
   };
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="rounded-xl border border-neutral-800 bg-neutral-900/80 backdrop-blur p-6 space-y-6"
-    >
-      {/* Prompt */}
-      <div>
-        <label className="block text-sm font-medium text-neutral-300 mb-2">
-          Prompt
-        </label>
-        <textarea
-          value={topic}
-          onChange={(e) => setTopic(e.target.value)}
-          rows={3}
-          placeholder="Describe what you want the AI to generate…"
-          className="w-full resize-none rounded-md bg-neutral-800 border border-neutral-700 px-3 py-2 text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-green-500"
-        />
-      </div>
-
-      {/* Modifiers */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-1">
+      <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-6">
+        
+        {/* Main Prompt Input */}
         <div>
-          <label className="block text-xs font-medium text-neutral-400 mb-1">
-            Content Type
+          <label className="block text-sm font-semibold text-slate-700 mb-2">
+            What would you like to create?
           </label>
-          <select
-            value={contentType}
-            onChange={(e) => setContentType(e.target.value)}
-            className="w-full rounded-md bg-neutral-800 border border-neutral-700 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-green-500"
-          >
-            <option value="blog post">Blog Post</option>
-            <option value="linkedin post">LinkedIn Post</option>
-            <option value="tweet">Tweet</option>
-            <option value="email newsletter">Email Newsletter</option>
-            <option value="code">Code</option>
-          </select>
+          <div className="relative">
+            <textarea
+              value={topic}
+              onChange={(e) => setTopic(e.target.value)}
+              rows={3}
+              placeholder="e.g., A blog post about the future of AI in healthcare..."
+              className="w-full resize-none rounded-xl bg-slate-50 border border-slate-200 px-4 py-3 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition shadow-inner"
+            />
+            <Zap className="absolute right-3 top-3 text-indigo-400 opacity-50" size={16} />
+          </div>
         </div>
 
-        <div>
-          <label className="block text-xs font-medium text-neutral-400 mb-1">
-            Tone
-          </label>
-          <select
-            value={tone}
-            onChange={(e) => setTone(e.target.value)}
-            className="w-full rounded-md bg-neutral-800 border border-neutral-700 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-green-500"
-          >
-            <option value="professional">Professional</option>
-            <option value="serious">Serious</option>
-            <option value="enthusiastic">Enthusiastic</option>
-            <option value="casual">Casual</option>
-            <option value="programming">Programming</option>
-          </select>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Content Type */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Format</label>
+            <select
+              value={contentType}
+              onChange={(e) => setContentType(e.target.value)}
+              className="w-full rounded-lg bg-white border border-slate-200 px-3 py-2.5 text-sm text-slate-700 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+            >
+              <option value="blog post">Blog Post</option>
+              <option value="linkedin post">LinkedIn Post</option>
+              <option value="tweet">Tweet / X Post</option>
+              <option value="email newsletter">Newsletter</option>
+              <option value="code">Code Snippet</option>
+            </select>
+          </div>
+
+          {/* Tone */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Tone</label>
+            <select
+              value={tone}
+              onChange={(e) => setTone(e.target.value)}
+              className="w-full rounded-lg bg-white border border-slate-200 px-3 py-2.5 text-sm text-slate-700 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+            >
+              <option value="professional">Professional</option>
+              <option value="enthusiastic">Enthusiastic</option>
+              <option value="casual">Casual</option>
+              <option value="authoritative">Authoritative</option>
+            </select>
+          </div>
+
+          {/* Audience */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Target Audience</label>
+            <input
+              type="text"
+              value={targetAudience}
+              onChange={(e) => setTargetAudience(e.target.value)}
+              placeholder="e.g. CTOs, Students..."
+              className="w-full rounded-lg bg-white border border-slate-200 px-3 py-2.5 text-sm text-slate-700 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
+            />
+          </div>
         </div>
-      </div>
 
-      {/* Audience */}
-      <div>
-        <label className="block text-xs font-medium text-neutral-400 mb-1">
-          Target Audience
-        </label>
-        <input
-          type="text"
-          value={targetAudience}
-          onChange={(e) => setTargetAudience(e.target.value)}
-          placeholder="e.g. Developers, founders, students"
-          className="w-full rounded-md bg-neutral-800 border border-neutral-700 px-3 py-2 text-sm text-white placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-green-500"
-        />
-      </div>
-
-      {/* Action */}
-      <div className="pt-2">
-        <button
-          type="submit"
-          className="w-full rounded-md bg-green-500 py-2.5 text-sm font-semibold text-black hover:bg-green-400 transition active:scale-[0.98]"
-        >
-          Generate
-        </button>
-      </div>
-    </form>
+        {/* Submit Button */}
+        <div className="pt-2">
+          <button
+            type="submit"
+            disabled={loading || !topic.trim()}
+            className="w-full flex items-center justify-center gap-2 rounded-xl bg-indigo-600 py-3.5 text-sm font-semibold text-white shadow-lg shadow-indigo-200 hover:bg-indigo-700 hover:shadow-xl hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? (
+              "Generating..."
+            ) : (
+              <>
+                Generate Content <Send size={16} />
+              </>
+            )}
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }

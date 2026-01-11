@@ -2,7 +2,7 @@ import os
 import datetime
 from fastapi import APIRouter, HTTPException, Header, Depends
 from firebase_admin import auth, firestore
-from models.schemas import GenerateRequest, GenerateResponse
+from models.schemas import GenerateRequest, GenerateResponse, RegenerateRequest, RegenerateResponse
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
@@ -11,7 +11,6 @@ from services.vector_service import VectorService
 router = APIRouter()
 db = firestore.client()
 
-# Re-use the dependency (or import it from a common auth.py)
 async def get_current_user(authorization: str = Header(...)):
     if not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Invalid header")
@@ -31,7 +30,7 @@ except Exception as e:
 @router.post("/generate", response_model=GenerateResponse)
 async def generate_content(
     request: GenerateRequest, 
-    user: dict = Depends(get_current_user) # <--- Require Auth
+    user: dict = Depends(get_current_user) 
 ):
     print(f"Generating {request.topic} for user {user['uid']}...")
     try:
@@ -56,7 +55,6 @@ async def generate_content(
             "tone": request.tone
         })
 
-        # --- SAVE TO FIRESTORE ---
         doc_ref = db.collection("generations").document()
         doc_ref.set({
             "uid": user["uid"],
@@ -66,7 +64,6 @@ async def generate_content(
             "answer": result,
             "created_at": datetime.datetime.now(datetime.timezone.utc)
         })
-        # -------------------------
 
         return GenerateResponse(answer=result, topic=request.topic)
 
@@ -74,7 +71,6 @@ async def generate_content(
         print(e)
         raise HTTPException(status_code=500, detail=str(e))
     
-# --- NEW: REGENERATE ENDPOINT ---
 @router.post("/regenerate", response_model=RegenerateResponse)
 async def regenerate_selection(request: RegenerateRequest):
     print(f"Regenerating text with instruction: {request.instruction}")

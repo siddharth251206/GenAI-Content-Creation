@@ -5,37 +5,38 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
-# Import routers
-from routes import generate, images, history  # <--- Import history
-
 load_dotenv()
 
-# --- FIREBASE INIT ---
-# Ensure you have your serviceAccountKey.json path in .env or use default google credentials
-# For local dev, explicit path is often easiest: cred = credentials.Certificate("path/to/key.json")
-try:
-    firebase_admin.get_app()
-except ValueError:
-    # Use default credentials (works if logged in via gcloud CLI) or explicit service account
-    cred = credentials.ApplicationDefault() 
-    firebase_admin.initialize_app(cred)
+# --- 1. FIREBASE INIT (MUST BE FIRST) ---
+if not firebase_admin._apps:
+    try:
+        # Try service account first (Best for History/DB access)
+        cred = credentials.Certificate("serviceAccountKey.json")
+        firebase_admin.initialize_app(cred)
+        print("✅ Firebase initialized with serviceAccountKey.json")
+    except Exception:
+        # Fallback to default
+        print("🔄 Using Default Credentials...")
+        cred = credentials.ApplicationDefault()
+        firebase_admin.initialize_app(cred)
+
+# --- 2. IMPORT ROUTERS (MUST BE AFTER INIT) ---
+# 🚨 If you import these at the top, the app crashes!
+from routes import generate, images, history
 
 app = FastAPI()
 
-origins = ["http://localhost:3000"]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Plug in routes
 app.include_router(generate.router, prefix="/api")
 app.include_router(images.router, prefix="/api")
-app.include_router(history.router, prefix="/api") # <--- Add history router
+app.include_router(history.router, prefix="/api")
 
 @app.get("/")
 def read_root():
