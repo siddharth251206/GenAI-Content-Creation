@@ -21,7 +21,7 @@ export default function ResultSection({ data, onRegenerate }) {
   const [loadingImages, setLoadingImages] = useState(false);
   const [selectedText, setSelectedText] = useState("");
   const [isRegenerating, setIsRegenerating] = useState(false);
-
+ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
   useEffect(() => {
     if (data.topic) fetchImages(data.topic);
   }, [data.topic]);
@@ -29,7 +29,7 @@ export default function ResultSection({ data, onRegenerate }) {
   const fetchImages = async (topic) => {
     setLoadingImages(true);
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/images", {
+      const res = await fetch(`${API_URL}/api/images`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ topic }),
@@ -65,7 +65,7 @@ export default function ResultSection({ data, onRegenerate }) {
     if (!selectedText) return;
     setIsRegenerating(true);
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/regenerate", {
+      const res = await fetch(`${API_URL}/api/regenerate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ selected_text: selectedText, instruction }),

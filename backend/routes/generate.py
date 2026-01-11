@@ -1,4 +1,5 @@
 import os
+import json
 import datetime
 from fastapi import APIRouter, HTTPException, Header, Depends
 from firebase_admin import auth, firestore
@@ -7,6 +8,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from services.vector_service import VectorService
+from google.oauth2 import service_account
 
 router = APIRouter()
 db = firestore.client()
@@ -17,13 +19,35 @@ async def get_current_user(authorization: str = Header(...)):
     token = authorization.split("Bearer ")[1]
     try:
         return auth.verify_id_token(token)
-    except:
+    except Exception as e:
+        print(f"Auth Error: {e}")
         raise HTTPException(status_code=401, detail="Invalid token")
 
+# --- INITIALIZE SERVICES ---
 try:
+    # 1. Vector Service
     vs = VectorService()
     retriever = vs.vector_store.as_retriever(search_kwargs={"k": 5})
-    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", project=os.getenv("GOOGLE_CLOUD_PROJECT"))
+
+    # 2. Gemini Chat Model (With Manual Auth Fix)
+    google_creds_json = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+    if google_creds_json:
+        creds_dict = json.loads(google_creds_json)
+        
+        creds = service_account.Credentials.from_service_account_info(
+            creds_dict,
+            scopes=["https://www.googleapis.com/auth/cloud-platform"]
+        )
+        
+        llm = ChatGoogleGenerativeAI(
+            model="gemini-2.5-flash", 
+            project=os.getenv("GOOGLE_CLOUD_PROJECT"),
+            credentials=creds
+        )
+    else:
+        print("❌ GOOGLE_APPLICATION_CREDENTIALS missing for Gemini")
+        llm = None
+
 except Exception as e:
     print(f"Startup Error: {e}")
 
@@ -32,17 +56,33 @@ async def generate_content(
     request: GenerateRequest, 
     user: dict = Depends(get_current_user) 
 ):
+    if not llm:
+        raise HTTPException(status_code=500, detail="LLM not initialized")
+
     print(f"Generating {request.topic} for user {user['uid']}...")
     try:
+        # Retrieve context (This might return irrelevant project files)
         relevant_docs = retriever.invoke(request.topic)
         context_text = "\n\n".join([d.page_content for d in relevant_docs])
         
+        # --- 🚨 PROMPT FIX HERE 🚨 ---
+        # We explicitly tell the AI to JUDGE the context first.
         template = """You are an expert content creator.
+        
+        === RETRIEVED CONTEXT (May be irrelevant) ===
+        {context}
+        =============================================
+        
+        USER REQUEST:
         Topic: {topic}
         Tone: {tone}
-        Context: {context}
+        Format: {content_type}
         
-        Write a {content_type}. If context is irrelevant, ignore it.
+        STRICT INSTRUCTIONS:
+        1. Analyze the 'RETRIEVED CONTEXT'. 
+        2. If the context is NOT directly related to the Topic (e.g., if the topic is "Skin Care" but the context is about "Software code" or "Project settings"), IGNORE THE CONTEXT COMPLETELY.
+        3. Do NOT mention "Pinecone", "Vertex AI", "Siddharth", or this software project unless the User Request specifically asks for it.
+        4. Write a high-quality {content_type} based on the topic.
         """
         
         prompt = ChatPromptTemplate.from_template(template)
@@ -73,6 +113,9 @@ async def generate_content(
     
 @router.post("/regenerate", response_model=RegenerateResponse)
 async def regenerate_selection(request: RegenerateRequest):
+    if not llm:
+        raise HTTPException(status_code=500, detail="LLM not initialized")
+        
     print(f"Regenerating text with instruction: {request.instruction}")
     
     try:

@@ -8,6 +8,7 @@ export default function HistoryList() {
   const { user } = useAuth();
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
   
   // Modal State
   const [selectedItem, setSelectedItem] = useState(null);
@@ -19,7 +20,7 @@ export default function HistoryList() {
   const fetchHistory = async () => {
     try {
       const token = await user.getIdToken();
-      const response = await fetch("http://127.0.0.1:8000/api/history", {
+      const response = await fetch(`${API_URL}/api/history`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) {
@@ -42,7 +43,7 @@ export default function HistoryList() {
 
     try {
       const token = await user.getIdToken();
-      await fetch(`http://127.0.0.1:8000/api/history/${id}`, {
+      await fetch(`${API_URL}/api/history/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });

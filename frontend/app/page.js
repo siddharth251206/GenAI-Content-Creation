@@ -10,6 +10,7 @@ import { useAuth } from "@/context/AuthContext";
 import { Sparkles, History, PenTool } from "lucide-react";
 
 export default function Home() {
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
   const { user } = useAuth();
   
   // View State
@@ -33,7 +34,7 @@ export default function Home() {
 
     try {
       const token = await user.getIdToken();
-      const response = await fetch("http://127.0.0.1:8000/api/generate", {
+      const response = await fetch(`${API_URL}/api/generate`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",

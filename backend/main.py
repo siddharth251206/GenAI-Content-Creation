@@ -1,4 +1,5 @@
 import os
+import json
 import firebase_admin
 from firebase_admin import credentials, firestore
 from fastapi import FastAPI
@@ -7,28 +8,36 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# --- 1. FIREBASE INIT (MUST BE FIRST) ---
+# --- 1. FIREBASE INIT ---
 if not firebase_admin._apps:
     try:
-        # Try service account first (Best for History/DB access)
-        cred = credentials.Certificate("serviceAccountKey.json")
-        firebase_admin.initialize_app(cred)
-        print("✅ Firebase initialized with serviceAccountKey.json")
-    except Exception:
-        # Fallback to default
-        print("🔄 Using Default Credentials...")
-        cred = credentials.ApplicationDefault()
-        firebase_admin.initialize_app(cred)
+        # Use only the FIREBASE_SERVICE_ACCOUNT variable
+        firebase_json = os.environ.get("FIREBASE_SERVICE_ACCOUNT")
+        
+        if firebase_json:
+            # Parse the JSON string into a dict
+            cred_dict = json.loads(firebase_json)
+            # Initialize Firebase with the dictionary (no file needed)
+            cred = credentials.Certificate(cred_dict)
+            firebase_admin.initialize_app(cred)
+            print("✅ Firebase initialized from FIREBASE_SERVICE_ACCOUNT")
+        else:
+            print("❌ FIREBASE_SERVICE_ACCOUNT not found in environment!")
 
-# --- 2. IMPORT ROUTERS (MUST BE AFTER INIT) ---
-# 🚨 If you import these at the top, the app crashes!
+    except Exception as e:
+        print(f"❌ Firebase Init Error: {e}")
+
+# --- 2. IMPORT ROUTERS ---
 from routes import generate, images, history
 
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=[
+        "http://localhost:3000",
+        "https://contentflow-genai.vercel.app"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
