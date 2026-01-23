@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { Wand2, Image as ImageIcon, RefreshCw, Check, Copy, Download, RotateCw, Plus, MousePointerClick } from "lucide-react";
 
-// Dynamically load Editor
 const CustomEditor = dynamic(
   async () => {
     const { CKEditor } = await import("@ckeditor/ckeditor5-react");
@@ -14,7 +13,6 @@ const CustomEditor = dynamic(
   { ssr: false, loading: () => <div className="p-8 text-slate-400">Loading Editor...</div> }
 );
 
-// --- MARKDOWN FORMATTER ---
 const formatMarkdown = (text) => {
   if (!text) return "";
   
@@ -38,7 +36,7 @@ export default function ResultSection({ data, onRegenerate }) {
   const [editorInstance, setEditorInstance] = useState(null);
   const [images, setImages] = useState([]);
   const [loadingImages, setLoadingImages] = useState(false);
-  const [imagePage, setImagePage] = useState(1); // Track image pages
+  const [imagePage, setImagePage] = useState(1); 
   const [selectedText, setSelectedText] = useState("");
   const [isRegenerating, setIsRegenerating] = useState(false);
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
@@ -51,7 +49,6 @@ export default function ResultSection({ data, onRegenerate }) {
 
   useEffect(() => {
     if (data.topic) {
-        // Reset images when topic changes
         setImages([]);
         setImagePage(1);
         fetchImages(data.topic, 1);
@@ -61,7 +58,6 @@ export default function ResultSection({ data, onRegenerate }) {
   const fetchImages = async (topic, page) => {
     setLoadingImages(true);
     try {
-      // Pass page as query param to avoid changing Body schema if strict
       const res = await fetch(`${API_URL}/api/images?page=${page}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -146,10 +142,8 @@ export default function ResultSection({ data, onRegenerate }) {
   return (
     <section className="flex flex-col lg:flex-row gap-6 lg:gap-8 h-auto lg:h-[850px] animate-in fade-in duration-700 pb-10 lg:pb-0">
       
-      {/* --- EDITOR AREA --- */}
       <div className="flex-1 flex flex-col bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden relative min-h-[500px]">
         
-        {/* Top Toolbar */}
         <div className="flex items-center justify-between px-4 py-3 md:px-6 md:py-3 border-b border-slate-100 bg-white">
           <div className="flex items-center gap-2">
              <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
@@ -170,7 +164,6 @@ export default function ResultSection({ data, onRegenerate }) {
           </div>
         </div>
 
-        {/* Editor Instance */}
         <div className="flex-1 overflow-y-auto">
           <CustomEditor
             data={editorData}
@@ -182,7 +175,6 @@ export default function ResultSection({ data, onRegenerate }) {
           />
         </div>
 
-        {/* Bottom Action Bar */}
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 md:gap-2 bg-slate-900/95 backdrop-blur text-white p-1.5 rounded-xl shadow-xl transition w-max max-w-[95%] z-20">
            <button onClick={handleCopy} className="flex items-center gap-2 px-3 py-2 hover:bg-white/10 rounded-lg text-xs md:text-sm font-medium transition">
              <Copy size={14} /> Copy
@@ -198,14 +190,12 @@ export default function ResultSection({ data, onRegenerate }) {
         </div>
       </div>
 
-      {/* --- SIDEBAR --- */}
       <div className="w-full lg:w-80 flex flex-col bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden h-auto lg:h-full shrink-0">
         <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/50 flex flex-col gap-1">
           <div className="flex items-center gap-2 text-slate-700">
             <ImageIcon size={16} />
             <span className="text-sm font-semibold">Stock Images</span>
           </div>
-          {/* Mobile Note */}
           <p className="text-[10px] text-indigo-500 font-medium lg:hidden flex items-center gap-1">
             <MousePointerClick size={10} /> Tap image to insert into editor
           </p>
@@ -228,7 +218,6 @@ export default function ResultSection({ data, onRegenerate }) {
               </div>
             ))}
             
-            {/* Loading Indicator or Load More Button */}
             {loadingImages ? (
               <div className="col-span-2 py-6 flex flex-col items-center gap-2">
                  <div className="animate-spin w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full"/>
