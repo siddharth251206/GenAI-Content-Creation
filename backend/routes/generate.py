@@ -23,18 +23,14 @@ async def get_current_user(authorization: str = Header(...)):
         print(f"Auth Error: {e}")
         raise HTTPException(status_code=401, detail="Invalid token")
 
-# --- INITIALIZE SERVICES ---
 try:
-    # 1. Vector Service
     vs = VectorService()
     retriever = vs.vector_store.as_retriever(search_kwargs={"k": 5})
 
-    # 2. Gemini Chat Model (With Manual Auth & Scope Fix)
     google_creds_json = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
     if google_creds_json:
         creds_dict = json.loads(google_creds_json)
         
-        # 🚨 FIX: Add the scope here!
         creds = service_account.Credentials.from_service_account_info(
             creds_dict,
             scopes=["https://www.googleapis.com/auth/cloud-platform"]
@@ -62,11 +58,9 @@ async def generate_content(
 
     print(f"Generating {request.topic} for user {user['uid']}...")
     try:
-        # Retrieve context (May include irrelevant files)
         relevant_docs = retriever.invoke(request.topic)
         context_text = "\n\n".join([d.page_content for d in relevant_docs])
         
-        # --- 🚨 PROMPT FIX TO IGNORE BAD CONTEXT 🚨 ---
         template = """You are an expert content creator.
         
         === RETRIEVED CONTEXT (May be irrelevant) ===

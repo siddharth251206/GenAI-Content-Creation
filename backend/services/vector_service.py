@@ -18,14 +18,12 @@ class VectorService:
         if not self.api_key:
             raise ValueError("PINECONE_API_KEY is not set")
 
-        # --- GOOGLE AUTH FIX ---
         google_creds_json = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
         if not google_creds_json:
             raise ValueError("GOOGLE_APPLICATION_CREDENTIALS not found")
             
         creds_dict = json.loads(google_creds_json)
         
-        # 🚨 FIX: Add the scope here!
         self.creds = service_account.Credentials.from_service_account_info(
             creds_dict,
             scopes=["https://www.googleapis.com/auth/cloud-platform"]
