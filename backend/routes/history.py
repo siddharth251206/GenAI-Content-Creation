@@ -6,7 +6,6 @@ from models.schemas import HistoryItem
 router = APIRouter()
 db = firestore.client()
 
-# --- Auth Dependency ---
 async def get_current_user(authorization: Optional[str] = Header(None)):
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing or invalid token")
@@ -23,7 +22,7 @@ async def get_history(user: dict = Depends(get_current_user)):
             db.collection("generations")
             .where("uid", "==", user["uid"])
             .order_by("created_at", direction=firestore.Query.DESCENDING)
-            .limit(20) # 👈 FIXED: Limit to last 20 items for speed
+            .limit(20)
             .stream()
         )
         

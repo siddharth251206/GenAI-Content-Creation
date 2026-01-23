@@ -10,7 +10,6 @@ class ImageService:
         self.api_key = os.getenv("PEXELS_API_KEY")
         self.base_url = "https://api.pexels.com/v1/search"
         
-        # --- Initialize Gemini for Query Refinement ---
         google_creds_json = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
         self.llm = None
         
@@ -22,7 +21,6 @@ class ImageService:
                     scopes=["https://www.googleapis.com/auth/cloud-platform"]
                 )
                 
-                # As requested: Setting model to gemini-2.5-flash
                 self.llm = ChatGoogleGenerativeAI(
                     model="gemini-2.5-flash", 
                     credentials=creds
@@ -49,20 +47,17 @@ class ImageService:
             print(f"Refined Image Query: '{user_query}' -> '{cleaned_query}'")
             return cleaned_query
         except Exception as e:
-            # This block will catch the error if 'gemini-2.5-flash' is not found
             print(f"Error generating search term (using fallback): {e}")
             return user_query
 
-    def get_images(self, query: str, per_page: int = 4, page: int = 1):
+    def get_images(self, query: str, per_page: int = 5, page: int = 1):
         if not self.api_key:
             print("WARNING: PEXELS_API_KEY not found in .env")
             return []
 
-        # 1. SMART REFINE
         optimized_query = self._generate_search_term(query)
 
         headers = {"Authorization": self.api_key}
-        # 2. SEARCH with Pagination
         params = {
             "query": optimized_query, 
             "per_page": per_page, 

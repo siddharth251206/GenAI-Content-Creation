@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import LoginButton from "@/components/LoginButton"; 
 import InputForm from "@/components/InputForm";
 import ResultSection from "@/components/ResultSection";
@@ -17,6 +17,28 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [resultData, setResultData] = useState(null);
   const [lastRequest, setLastRequest] = useState(null);
+
+  const [isNavbarVisible, setIsNavbarVisible] = useState(true);
+  const lastScrollY = useRef(0);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      
+      if (currentScrollY < 10) {
+        setIsNavbarVisible(true);
+      } else if (currentScrollY > lastScrollY.current) {
+        setIsNavbarVisible(false);
+      } else {
+        setIsNavbarVisible(true);
+      }
+
+      lastScrollY.current = currentScrollY;
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const handleGenerate = async (formData) => {
     if (!user) {
@@ -57,8 +79,11 @@ export default function Home() {
   return (
     <main className="min-h-screen pb-20 selection:bg-indigo-100 selection:text-indigo-900">
       
-      {/* --- Header (Widened) --- */}
-      <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur-sm">
+      <header 
+        className={`sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur-sm transition-transform duration-300 ease-in-out ${
+          isNavbarVisible ? "translate-y-0" : "-translate-y-full"
+        }`}
+      >
         <div className="mx-auto flex h-16 max-w-[90rem] items-center justify-between px-4 sm:px-8">
           <div className="flex items-center gap-2.5 group cursor-pointer">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 shadow-sm transition-transform duration-300 group-hover:scale-105">
@@ -72,7 +97,6 @@ export default function Home() {
         </div>
       </header>
 
-      {/* --- Main Content (Widened) --- */}
       <div className="mx-auto mt-8 max-w-[85rem] px-4 sm:px-6 md:mt-12">
         
         {user && (
@@ -106,7 +130,6 @@ export default function Home() {
           <div className="mx-auto max-w-7xl">
             {activeTab === "generate" ? (
               <div className="animate-in fade-in slide-in-from-bottom-6 duration-700 ease-out">
-                {/* Hero Title */}
                 <div className="text-center mb-10">
                   <h2 className="text-4xl font-extrabold text-slate-900 tracking-tight sm:text-5xl mb-4">
                     Create content with <span className="text-indigo-600">Superpowers</span>
@@ -140,7 +163,6 @@ export default function Home() {
             )}
           </div>
         ) : (
-          /* Empty State */
           <div className="mt-20 flex flex-col items-center justify-center text-center animate-in zoom-in-95 duration-700">
             <div className="mb-8 flex h-24 w-24 items-center justify-center rounded-[2rem] bg-indigo-50 border border-indigo-100">
               <LayoutTemplate className="h-10 w-10 text-indigo-600" />

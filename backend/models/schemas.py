@@ -7,6 +7,7 @@ class GenerateRequest(BaseModel):
     content_type: str = Field(default="blog post", description="Type of content")
     tone: str = Field(default="professional", description="Tone of voice")
     target_audience: Optional[str] = Field(default="general audience")
+    language: str = Field(default="English", description="Language of Content")
 
 class GenerateResponse(BaseModel):
     answer: str

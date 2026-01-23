@@ -1,8 +1,23 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
-import { Wand2, Image as ImageIcon, RefreshCw, Check, Copy, Download, RotateCw, Plus, MousePointerClick } from "lucide-react";
+import { 
+  Image as ImageIcon, 
+  RefreshCw, 
+  Check, 
+  Copy, 
+  Download, 
+  RotateCw, 
+  Plus, 
+  MousePointerClick, 
+  Sparkles, 
+  Maximize2,
+  Printer,
+  FileText,
+  FileCode,
+  ChevronDown
+} from "lucide-react";
 
 const CustomEditor = dynamic(
   async () => {
@@ -13,21 +28,40 @@ const CustomEditor = dynamic(
   { ssr: false, loading: () => <div className="p-8 text-slate-400">Loading Editor...</div> }
 );
 
+const exportStyles = `
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #334155; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 20px; }
+  h1 { font-size: 2.25em; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 0.3em; margin-top: 0; color: #0f172a; line-height: 1.1; }
+  h2 { font-size: 1.5em; font-weight: 700; margin-top: 1.5em; margin-bottom: 0.4em; color: #1e293b; letter-spacing: -0.02em; }
+  h3 { font-size: 1.25em; font-weight: 600; margin-top: 1.25em; margin-bottom: 0.25em; color: #4338ca; }
+  h4 { font-size: 0.85em; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 1.25em; margin-bottom: 0.25em; color: #64748b; }
+  p { margin-bottom: 1em; }
+  ul { list-style-type: disc; padding-left: 1.2em; margin-bottom: 1em; margin-top: 0.5em; }
+  li { margin-bottom: 0.25em; padding-left: 0.2em; color: #475569; }
+  blockquote { border-left: 3px solid #6366f1; background: #f8fafc; padding: 0.75em 1em; margin: 1.5em 0; font-style: italic; color: #475569; border-radius: 4px; }
+  /* Ensure images fit and are visible */
+  img { max-width: 100%; height: auto; border-radius: 8px; margin: 10px 0; display: block; }
+  figure { margin: 0; padding: 0; }
+  strong { color: #1e293b; font-weight: 700; }
+`;
+
 const formatMarkdown = (text) => {
   if (!text) return "";
-  
-  let html = text
+  let html = text.replace(/\r\n/g, '\n');
+  html = html
     .replace(/```html/g, '').replace(/```/g, '')
-    .replace(/^### (.*$)/gim, '<h3>$1</h3>')
-    .replace(/^## (.*$)/gim, '<h2>$1</h2>')
-    .replace(/^# (.*$)/gim, '<h1>$1</h1>')
-    .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
-    .replace(/\*(.*?)\*/gim, '<em>$1</em>')
-    .replace(/^\- (.*$)/gim, '<li>$1</li>')
+    .replace(/^\s*#### (.*$)/gim, '<h4>$1</h4>')
+    .replace(/^\s*### (.*$)/gim, '<h3>$1</h3>')
+    .replace(/^\s*## (.*$)/gim, '<h2>$1</h2>')
+    .replace(/^\s*# (.*$)/gim, '<h1>$1</h1>')
+    .replace(/^\s*> (.*$)/gim, '<blockquote>$1</blockquote>')
+    .replace(/^\s*[\-\*] (.*$)/gim, '<li>$1</li>')
     .replace(/(<li>.*<\/li>)/gim, '<ul>$1</ul>')
     .replace(/<\/ul>\s*<ul>/gim, '')
+    .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/gim, '<em>$1</em>')
+    .replace(/(<\/h[1-6]>|<\/ul>|<\/ol>|<\/blockquote>)\s*\n+/gim, '$1')
+    .replace(/\n+\s*(<h[1-6]>|<ul>|<ol>|<blockquote>)/gim, '$1')
     .replace(/\n/gim, '<br />');
-
   return html;
 };
 
@@ -38,7 +72,11 @@ export default function ResultSection({ data, onRegenerate }) {
   const [loadingImages, setLoadingImages] = useState(false);
   const [imagePage, setImagePage] = useState(1); 
   const [selectedText, setSelectedText] = useState("");
-  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [activeAction, setActiveAction] = useState(null);
+  const [isCopied, setIsCopied] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const exportMenuRef = useRef(null);
+
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
   useEffect(() => {
@@ -55,6 +93,16 @@ export default function ResultSection({ data, onRegenerate }) {
     }
   }, [data.topic]);
 
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target)) {
+        setShowExportMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   const fetchImages = async (topic, page) => {
     setLoadingImages(true);
     try {
@@ -64,7 +112,6 @@ export default function ResultSection({ data, onRegenerate }) {
         body: JSON.stringify({ topic }),
       });
       const result = await res.json();
-      
       if (result.images && result.images.length > 0) {
           setImages(prev => [...prev, ...result.images]);
       }
@@ -99,26 +146,29 @@ export default function ResultSection({ data, onRegenerate }) {
     setSelectedText(text);
   };
 
-  const handleSmartRegenerate = async (instruction) => {
-    if (!selectedText) return;
-    setIsRegenerating(true);
+  const handleSmartRegenerate = async (actionType, instruction) => {
+    if (!selectedText || !editorInstance) return;
+    setActiveAction(actionType);
     try {
+      const enhancedInstruction = `${instruction}. IMPORTANT: Preserve the original structural formatting (bullet points, lists, headings) in your response using standard Markdown/HTML.`;
       const res = await fetch(`${API_URL}/api/regenerate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ selected_text: selectedText, instruction }),
+        body: JSON.stringify({ selected_text: selectedText, instruction: enhancedInstruction }),
       });
       const result = await res.json();
-      
+      const formattedHtml = formatMarkdown(result.updated_text);
       editorInstance.model.change((writer) => {
         const selection = editorInstance.model.document.selection;
         const range = selection.getFirstRange();
-        editorInstance.model.insertContent(writer.createText(result.updated_text), range);
+        const viewFragment = editorInstance.data.processor.toView(formattedHtml);
+        const modelFragment = editorInstance.data.toModel(viewFragment);
+        editorInstance.model.insertContent(modelFragment, range);
       });
     } catch (err) {
       console.error(err);
     } finally {
-      setIsRegenerating(false);
+      setActiveAction(null);
     }
   };
 
@@ -127,16 +177,105 @@ export default function ResultSection({ data, onRegenerate }) {
     tempDiv.innerHTML = editorData;
     const plainText = tempDiv.innerText || tempDiv.textContent || "";
     navigator.clipboard.writeText(plainText);
-    alert("Content copied to clipboard!");
+    setIsCopied(true);
+    setTimeout(() => { setIsCopied(false); }, 2500);
   };
 
-  const handleExport = () => {
+  
+  const downloadFile = (blob, filename) => {
     const element = document.createElement("a");
-    const file = new Blob([editorData], {type: 'text/html'});
-    element.href = URL.createObjectURL(file);
-    element.download = "generated-content.html";
+    element.href = URL.createObjectURL(blob);
+    element.download = filename;
     document.body.appendChild(element); 
     element.click();
+    document.body.removeChild(element);
+    setShowExportMenu(false);
+  };
+
+  const handleExportHTML = () => {
+    const fullHtml = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Exported Content</title>
+          <style>${exportStyles}</style>
+        </head>
+        <body>
+          ${editorData}
+        </body>
+      </html>
+    `;
+    const file = new Blob([fullHtml], {type: 'text/html'});
+    downloadFile(file, "generated-content.html");
+  };
+
+  const handleExportDOCX = () => {
+    const preHtml = `
+      <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+      <head>
+        <meta charset='utf-8'>
+        <title>Export</title>
+        <style>
+          ${exportStyles}
+          body { font-family: Arial, sans-serif; }
+        </style>
+      </head>
+      <body>
+    `;
+    const postHtml = "</body></html>";
+    const html = preHtml + editorData + postHtml;
+    
+    const blob = new Blob(['\ufeff', html], {
+        type: 'application/msword'
+    });
+    downloadFile(blob, 'generated-content.doc');
+  };
+
+  const handleExportPDF = () => {
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'absolute';
+    iframe.style.width = '0px';
+    iframe.style.height = '0px';
+    iframe.style.border = 'none';
+    document.body.appendChild(iframe);
+    
+    const doc = iframe.contentWindow.document;
+    doc.write('<html><head><title>Print</title>');
+    doc.write(`<style>${exportStyles}</style>`); 
+    doc.write('</head><body>');
+    doc.write(editorData);
+    doc.write('</body></html>');
+    doc.close();
+
+    const printContent = () => {
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+      
+      setTimeout(() => {
+        if (document.body.contains(iframe)) {
+          document.body.removeChild(iframe);
+        }
+        setShowExportMenu(false);
+      }, 1000);
+    };
+
+    const images = iframe.contentDocument.getElementsByTagName('img');
+    if (images.length > 0) {
+      const loadPromises = Array.from(images).map(img => {
+        if (img.complete) return Promise.resolve();
+        return new Promise(resolve => {
+          img.onload = resolve;
+          img.onerror = resolve; 
+        });
+      });
+
+      Promise.all(loadPromises).then(() => {
+        setTimeout(printContent, 100);
+      });
+    } else {
+      printContent();
+    }
   };
 
   return (
@@ -144,27 +283,42 @@ export default function ResultSection({ data, onRegenerate }) {
       
       <div className="flex-1 flex flex-col bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden relative min-h-[500px]">
         
-        <div className="flex items-center justify-between px-4 py-3 md:px-6 md:py-3 border-b border-slate-100 bg-white">
+        <div className="flex items-center justify-between px-4 py-3 md:px-6 md:py-3 border-b border-slate-100 bg-white/80 backdrop-blur-sm z-10 sticky top-0">
           <div className="flex items-center gap-2">
-             <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">AI Editor</span>
+             <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)] animate-pulse" />
+             <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">AI Editor</span>
           </div>
           
-          <div className="flex gap-2">
-            {selectedText && (
-              <div className="flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
-                <button onClick={() => handleSmartRegenerate("Make it funnier")} disabled={isRegenerating} className="btn-toolbar text-indigo-600 bg-indigo-50 border-indigo-100 hover:bg-indigo-100">
-                  <Wand2 size={12} /> <span className="hidden sm:inline">Funny</span>
+          <div className="flex items-center">
+            {selectedText ? (
+              <div className="flex items-center gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                <button 
+                  onClick={() => handleSmartRegenerate('funny', "Make it funnier")} 
+                  disabled={!!activeAction} 
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 transition-all shadow-sm border border-indigo-700/10 ${activeAction && activeAction !== 'funny' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <Sparkles size={12} className={activeAction === 'funny' ? "animate-spin" : ""} /> 
+                  {activeAction === 'funny' ? "Generating..." : "Make Funnier"}
                 </button>
-                <button onClick={() => handleSmartRegenerate("Expand detailed")} disabled={isRegenerating} className="btn-toolbar text-emerald-600 bg-emerald-50 border-emerald-100 hover:bg-emerald-100">
-                  <RefreshCw size={12} className={isRegenerating ? "animate-spin" : ""} /> <span className="hidden sm:inline">Expand</span>
+                <button 
+                  onClick={() => handleSmartRegenerate('expand', "Expand detailed")} 
+                  disabled={!!activeAction} 
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 transition-all shadow-sm border border-emerald-700/10 ${activeAction && activeAction !== 'expand' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  {activeAction === 'expand' ? <RefreshCw size={12} className="animate-spin" /> : <Maximize2 size={12} />}
+                  {activeAction === 'expand' ? "Expanding..." : "Expand"}
                 </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium animate-pulse select-none">
+                 <MousePointerClick size={14} />
+                 <span>Select text to edit</span>
               </div>
             )}
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto relative">
           <CustomEditor
             data={editorData}
             onReady={(editor) => {
@@ -175,17 +329,47 @@ export default function ResultSection({ data, onRegenerate }) {
           />
         </div>
 
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 md:gap-2 bg-slate-900/95 backdrop-blur text-white p-1.5 rounded-xl shadow-xl transition w-max max-w-[95%] z-20">
-           <button onClick={handleCopy} className="flex items-center gap-2 px-3 py-2 hover:bg-white/10 rounded-lg text-xs md:text-sm font-medium transition">
-             <Copy size={14} /> Copy
+        <div className="absolute bottom-6 md:bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-1.5 md:gap-2 bg-slate-900/90 backdrop-blur-md text-white p-1.5 rounded-2xl shadow-2xl ring-1 ring-white/10 transition-all hover:scale-105 w-max max-w-[95%] z-20">
+           
+           <button 
+             onClick={handleCopy} 
+             disabled={isCopied}
+             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all duration-300 ${isCopied ? "bg-emerald-500/20 text-emerald-300" : "hover:bg-white/10"}`}
+           >
+             {isCopied ? <><Check size={15} /> Copied</> : <><Copy size={15} /> Copy</>}
            </button>
+
            <div className="w-px h-4 bg-white/20"></div>
-           <button onClick={handleExport} className="flex items-center gap-2 px-3 py-2 hover:bg-white/10 rounded-lg text-xs md:text-sm font-medium transition">
-             <Download size={14} /> Export
-           </button>
+           
+           <div className="relative" ref={exportMenuRef}>
+             <button 
+                onClick={() => setShowExportMenu(!showExportMenu)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs md:text-sm font-semibold transition ${showExportMenu ? "bg-white/20 text-white" : "hover:bg-white/10"}`}
+             >
+               <Download size={15} /> Export <ChevronDown size={12} className={`transition-transform ${showExportMenu ? "rotate-180" : ""}`} />
+             </button>
+
+             {showExportMenu && (
+               <div className="absolute bottom-full left-0 mb-2 w-48 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden animate-in fade-in slide-in-from-bottom-2 z-50">
+                 <div className="p-1">
+                   <button onClick={handleExportPDF} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-indigo-600 rounded-lg transition-colors text-left">
+                     <Printer size={14} /> Save as PDF
+                   </button>
+                   <button onClick={handleExportDOCX} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600 rounded-lg transition-colors text-left">
+                     <FileText size={14} /> Export to Word
+                   </button>
+                   <button onClick={handleExportHTML} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-orange-600 rounded-lg transition-colors text-left">
+                     <FileCode size={14} /> Export as HTML
+                   </button>
+                 </div>
+               </div>
+             )}
+           </div>
+           
            <div className="w-px h-4 bg-white/20"></div>
-           <button onClick={onRegenerate} className="flex items-center gap-2 px-3 py-2 hover:bg-white/10 rounded-lg text-xs md:text-sm font-medium transition text-indigo-300">
-             <RotateCw size={14} /> <span className="hidden sm:inline">Regenerate</span>
+           
+           <button onClick={onRegenerate} className="flex items-center gap-2 px-4 py-2 hover:bg-white/10 rounded-xl text-xs md:text-sm font-semibold transition text-indigo-300 hover:text-indigo-200">
+             <RotateCw size={15} /> <span className="hidden sm:inline">Regenerate</span>
            </button>
         </div>
       </div>
@@ -243,27 +427,43 @@ export default function ResultSection({ data, onRegenerate }) {
         .btn-toolbar {
           @apply flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border rounded-md transition hover:brightness-95;
         }
+
         .ck-editor__editable {
           min-height: 400px !important;
-          padding: 1.5rem !important;
-          font-family: ui-sans-serif, system-ui, sans-serif !important;
-          color: #1e293b !important;
+          padding: 2rem 2.5rem 6rem 2.5rem !important; 
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+          color: #334155 !important;
+          line-height: 1.6 !important; 
+          -webkit-font-smoothing: antialiased;
         }
         @media (min-width: 1024px) {
            .ck-editor__editable {
               min-height: 800px !important;
-              padding: 3rem !important;
+              padding: 3.5rem 4.5rem !important;
            }
         }
+        
         .ck.ck-toolbar {
           border: none !important;
-          background: white !important;
+          background: rgba(255, 255, 255, 0.8) !important;
+          backdrop-filter: blur(10px) !important;
+          -webkit-backdrop-filter: blur(10px) !important;
+          position: sticky !important;
+          top: 0 !important;
+          z-index: 50 !important;
+          border-bottom: 1px solid rgba(0,0,0,0.05) !important;
         }
-        .ck-editor__editable h1 { font-size: 2em; font-weight: 800; margin-bottom: 0.5em; color: #1e293b; }
-        .ck-editor__editable h2 { font-size: 1.5em; font-weight: 700; margin-bottom: 0.5em; margin-top: 1em; color: #334155; }
-        .ck-editor__editable h3 { font-size: 1.25em; font-weight: 600; margin-bottom: 0.5em; color: #475569; }
-        .ck-editor__editable ul { list-style-type: disc; padding-left: 1.5em; margin-bottom: 1em; }
-        .ck-editor__editable li { margin-bottom: 0.25em; }
+
+        /* --- HEADINGS (Matches Export Styles) --- */
+        .ck-editor__editable h1 { font-size: 2.25em; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 0.3em; margin-top: 0; color: #0f172a; line-height: 1.1; }
+        .ck-editor__editable h2 { font-size: 1.5em; font-weight: 700; margin-top: 1.5em; margin-bottom: 0.4em; color: #1e293b; letter-spacing: -0.02em; }
+        .ck-editor__editable h3 { font-size: 1.25em; font-weight: 600; margin-top: 1.25em; margin-bottom: 0.25em; color: #4338ca; }
+        .ck-editor__editable h4 { font-size: 0.85em; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 1.25em; margin-bottom: 0.25em; color: #64748b; }
+
+        .ck-editor__editable p { margin-bottom: 1em; }
+        .ck-editor__editable ul { list-style-type: disc; padding-left: 1.2em; margin-bottom: 1em; margin-top: 0.5em; }
+        .ck-editor__editable li { margin-bottom: 0.25em; padding-left: 0.2em; color: #475569; }
+        .ck-editor__editable blockquote { border-left: 3px solid #6366f1; background: #f8fafc; padding: 0.75em 1em; margin: 1.5em 0; font-style: italic; color: #475569; border-radius: 4px; }
       `}</style>
     </section>
   );

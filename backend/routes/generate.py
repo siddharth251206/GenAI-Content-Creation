@@ -56,12 +56,14 @@ async def generate_content(
     if not llm:
         raise HTTPException(status_code=500, detail="LLM not initialized")
 
-    print(f"Generating {request.topic} for user {user['uid']}...")
+    print(f"Generating {request.topic} in {request.language}...") 
+
     try:
         relevant_docs = retriever.invoke(request.topic)
         context_text = "\n\n".join([d.page_content for d in relevant_docs])
         
-        template = """You are an expert content creator.
+        template = """
+        You are an expert AI content creator.
         
         === RETRIEVED CONTEXT (May be irrelevant) ===
         {context}
@@ -71,11 +73,26 @@ async def generate_content(
         Topic: {topic}
         Tone: {tone}
         Format: {content_type}
+        Audience: {target_audience}
+        Language: {language}
         
         STRICT INSTRUCTIONS:
-        1. Analyze the 'RETRIEVED CONTEXT'. 
-        2. If the context is NOT directly related to the Topic (e.g., if it's about software code, project settings, or 'Siddharth'), IGNORE IT COMPLETELY.
-        3. Write a high-quality {content_type} based on the topic.
+        1. **IF the requested Format is 'LLM System Prompt' or 'AI Prompt'**:
+           - Your task is to act as an Elite Prompt Engineer.
+           - DO NOT write the actual content (like a blog or email). 
+           - INSTEAD, write a highly detailed, sophisticated SYSTEM PROMPT that the user can paste into another AI (like ChatGPT/Claude) to get that content.
+           - Include sections for: Persona, Context, Goal, Step-by-Step Instructions, and Constraints.
+           
+        2. **IF the requested Format is 'Midjourney Image Prompt'**:
+           - Output a list of 3-5 highly descriptive image prompts.
+           - Include parameters like --ar 16:9, --v 6.0, photorealistic, cinematic lighting.
+           
+        3. **FOR ALL OTHER FORMATS (Blog, Tweet, Email, etc.)**:
+           - Write the actual content in {language}.
+           - Adopt the '{tone}' tone.
+           - Structure it according to the format (e.g., subject lines for emails).
+        
+        4. Analyze the 'RETRIEVED CONTEXT'. Use it only if it adds factual value.
         """
         
         prompt = ChatPromptTemplate.from_template(template)
@@ -85,7 +102,9 @@ async def generate_content(
             "context": context_text,
             "topic": request.topic,
             "content_type": request.content_type,
-            "tone": request.tone
+            "tone": request.tone,
+            "target_audience": request.target_audience,
+            "language": request.language 
         })
 
         doc_ref = db.collection("generations").document()
@@ -94,6 +113,7 @@ async def generate_content(
             "topic": request.topic,
             "content_type": request.content_type,
             "tone": request.tone,
+            "language": request.language, 
             "answer": result,
             "created_at": datetime.datetime.now(datetime.timezone.utc)
         })
@@ -103,7 +123,7 @@ async def generate_content(
     except Exception as e:
         print(e)
         raise HTTPException(status_code=500, detail=str(e))
-    
+        
 @router.post("/regenerate", response_model=RegenerateResponse)
 async def regenerate_selection(request: RegenerateRequest):
     if not llm:
@@ -133,4 +153,4 @@ async def regenerate_selection(request: RegenerateRequest):
         return RegenerateResponse(updated_text=result)
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) 
