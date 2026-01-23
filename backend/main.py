@@ -50,3 +50,7 @@ app.include_router(history.router, prefix="/api")
 @app.get("/")
 def read_root():
     return {"status": "GenAI Brain Online 🧠"}
+
+@app.get("/ping")
+def ping():
+    return {"status": "alive"}
