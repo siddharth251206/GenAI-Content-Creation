@@ -16,7 +16,11 @@ import {
   Printer,
   FileText,
   FileCode,
-  ChevronDown
+  ChevronDown,
+  BarChart3, // New Import
+  Clock,     // New Import
+  AlignLeft, // New Import
+  Activity   // New Import
 } from "lucide-react";
 
 const CustomEditor = dynamic(
@@ -76,9 +80,26 @@ export default function ResultSection({ data, onRegenerate }) {
   const [isCopied, setIsCopied] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const exportMenuRef = useRef(null);
+  
+  // Analytics Data from Backend
+  const stats = data.analytics || { word_count: 0, reading_time: 0, readability_score: 0, sentiment: "N/A" };
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
+  const getReadabilityColor = (score) => {
+    if (score >= 80) return "text-green-600 bg-green-50 border-green-200";
+    if (score >= 60) return "text-blue-600 bg-blue-50 border-blue-200";
+    if (score >= 40) return "text-yellow-600 bg-yellow-50 border-yellow-200";
+    return "text-red-600 bg-red-50 border-red-200";
+  };
+  
+  const getReadabilityLabel = (score) => {
+    if (score >= 80) return "Very Easy";
+    if (score >= 60) return "Standard";
+    if (score >= 40) return "Difficult";
+    return "Very Complex";
+  };
+  
   useEffect(() => {
     if (data.answer) {
         setEditorData(formatMarkdown(data.answer));
@@ -283,6 +304,7 @@ export default function ResultSection({ data, onRegenerate }) {
       
       <div className="flex-1 flex flex-col bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden relative min-h-[500px]">
         
+        {/* Editor Toolbar Header */}
         <div className="flex items-center justify-between px-4 py-3 md:px-6 md:py-3 border-b border-slate-100 bg-white/80 backdrop-blur-sm z-10 sticky top-0">
           <div className="flex items-center gap-2">
              <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)] animate-pulse" />
@@ -317,6 +339,40 @@ export default function ResultSection({ data, onRegenerate }) {
             )}
           </div>
         </div>
+
+        {/* --- NEW: ANALYTICS DASHBOARD --- */}
+        <div className="grid grid-cols-2 md:grid-cols-4 border-b border-slate-100 divide-x divide-slate-100 bg-white">
+            <div className="p-3 flex flex-col items-center justify-center text-center">
+                <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                    <AlignLeft size={12} /> Words
+                </div>
+                <span className="text-lg font-black text-slate-700">{stats.word_count}</span>
+            </div>
+            
+            <div className="p-3 flex flex-col items-center justify-center text-center">
+                <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                    <Clock size={12} /> Read Time
+                </div>
+                <span className="text-lg font-black text-slate-700">{stats.reading_time} min</span>
+            </div>
+
+            <div className="p-3 flex flex-col items-center justify-center text-center">
+                <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                    <BarChart3 size={12} /> Readability
+                </div>
+                <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${getReadabilityColor(stats.readability_score)}`}>
+                    {getReadabilityLabel(stats.readability_score)}
+                </span>
+            </div>
+
+            <div className="p-3 flex flex-col items-center justify-center text-center">
+                <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                    <Activity size={12} /> Sentiment
+                </div>
+                <span className="text-sm font-bold text-slate-700 capitalize">{stats.sentiment}</span>
+            </div>
+        </div>
+        {/* -------------------------------- */}
 
         <div className="flex-1 overflow-y-auto relative">
           <CustomEditor
@@ -467,4 +523,4 @@ export default function ResultSection({ data, onRegenerate }) {
       `}</style>
     </section>
   );
-}
+} 

@@ -9,9 +9,16 @@ class GenerateRequest(BaseModel):
     target_audience: Optional[str] = Field(default="general audience")
     language: str = Field(default="English", description="Language of Content")
 
+class AnalyticsData(BaseModel):
+    word_count: int
+    reading_time: int
+    readability_score: float
+    sentiment: str
+
 class GenerateResponse(BaseModel):
     answer: str
     topic: str 
+    analytics: Optional[AnalyticsData] = None
 
 class HistoryItem(BaseModel):
     id: str
