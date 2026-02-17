@@ -15,7 +15,7 @@ Unlike generic AI tools, ContentFlow offers **Custom Brand Voice mimicking**, re
 
 ### 🧠 **Intelligent Generation & RAG**
 * **Powered by Gemini 2.5 Flash:** Blazing fast and highly accurate content generation.
-* **Train Your Brain (New):** Upload your own **PDFs, text files, or documentation**. The AI reads and memorizes your specific company data to generate factually accurate content.
+* **Train Your Brain:** Upload your own **PDFs, text files, or documentation**. The AI reads and memorizes your specific company data to generate factually accurate content.
 * **Private Knowledge Base:** Your uploaded data is secured in a **User-Specific Namespace** in Pinecone, ensuring the AI only uses *your* data to answer *your* prompts.
 * **Custom Brand Voice:** Don't just select a tone—**clone it**. Paste a sample of your writing (or a persona like a "Pirate") and the AI mimics the vocabulary, sentence structure, and personality exactly.
 
