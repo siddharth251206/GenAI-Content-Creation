@@ -13,9 +13,10 @@ Unlike generic AI tools, ContentFlow offers **Custom Brand Voice mimicking**, re
 
 ## ✨ Key Features
 
-### 🧠 **Intelligent Generation**
+### 🧠 **Intelligent Generation & RAG**
 * **Powered by Gemini 2.5 Flash:** Blazing fast and highly accurate content generation.
-* **RAG Context Awareness:** Uses Vector Search (**Pinecone**) to ground content in factual data, reducing hallucinations.
+* **Train Your Brain (New):** Upload your own **PDFs, text files, or documentation**. The AI reads and memorizes your specific company data to generate factually accurate content.
+* **Private Knowledge Base:** Your uploaded data is secured in a **User-Specific Namespace** in Pinecone, ensuring the AI only uses *your* data to answer *your* prompts.
 * **Custom Brand Voice:** Don't just select a tone—**clone it**. Paste a sample of your writing (or a persona like a "Pirate") and the AI mimics the vocabulary, sentence structure, and personality exactly.
 
 ### 📊 **Smart Analytics Dashboard**
@@ -39,25 +40,30 @@ Get real-time feedback on your content quality directly in the dashboard:
 
 ContentFlow Studio isn't just a wrapper around an API. It uses a sophisticated **Retrieval-Augmented Generation (RAG)** pipeline to ensure quality and relevance.
 
-### 1. **Context Retrieval (The Knowledge Layer)**
+### 1. **Knowledge Ingestion (Upload Layer)**
+* Users upload reference materials (PDFs/TXTs) via the "Knowledge" tab.
+* The backend uses **PyPDF** to extract text, chunks it into manageable pieces, and embeds it using Google's embedding models.
+* These vectors are stored in **Pinecone**, partitioned strictly by the **User's Unique ID (Namespace)** for privacy.
+
+### 2. **Context Retrieval (The Knowledge Layer)**
 * When you enter a topic, the backend initiates a **Vector Search** using **Pinecone**.
 * It retrieves semantically relevant documents and facts related to your topic to ground the AI, minimizing hallucinations.
 
-### 2. **Advanced Prompt Engineering (LangChain)**
+### 3. **Advanced Prompt Engineering (LangChain)**
 * Your inputs (Topic, Tone, Audience) + The Retrieved Context are fused into a highly structured **System Prompt**.
 * If you provided a **Custom Brand Voice**, the system analyzes your sample and injects specific instruction sets to mimic your vocabulary and sentence structure.
 
-### 3. **The Generation (Gemini 2.5)**
+### 4. **The Generation (Gemini 2.5)**
 * This enriched prompt is sent to **Google Gemini 2.5 Flash** via **LangChain**.
 * Gemini generates the content, adhering strictly to your formatting rules (Markdown, HTML, etc.).
 
-### 4. **Real-Time Analytics Engine**
+### 5. **Real-Time Analytics Engine**
 * Before the text reaches you, it passes through our Python-based analytics layer:
     * **TextStat** calculates the *Flesch Reading Ease* score.
     * **TextBlob** analyzes the sentiment (Positive/Neutral/Negative).
     * **Algorithmic Logic** computes word count and estimated reading time.
 
-### 5. **Delivery & Storage**
+### 6. **Delivery & Storage**
 * The final content + analytics metadata are bundled and sent to the Frontend.
 * Simultaneously, a copy is secured in **Firebase Firestore** for your history.
 
@@ -75,6 +81,7 @@ ContentFlow Studio isn't just a wrapper around an API. It uses a sophisticated *
 * **Framework:** FastAPI (Python)
 * **AI Orchestration:** LangChain + Google GenAI SDK
 * **Vector DB:** Pinecone
+* **PDF Processing:** PyPDF + Python-Multipart
 * **Database:** Firebase Firestore (Admin SDK)
 * **Analytics:** TextBlob (Sentiment) + TextStat (Readability)
 
