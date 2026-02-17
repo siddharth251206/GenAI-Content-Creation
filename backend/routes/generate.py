@@ -15,7 +15,6 @@ from google.oauth2 import service_account
 router = APIRouter()
 db = firestore.client()
 
-# --- Auth & Startup ---
 async def get_current_user(authorization: str = Header(...)):
     if not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Invalid header")
@@ -28,7 +27,6 @@ async def get_current_user(authorization: str = Header(...)):
 
 try:
     vs = VectorService()
-    retriever = vs.vector_store.as_retriever(search_kwargs={"k": 5})
 
     google_creds_json = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
     if google_creds_json:
@@ -48,6 +46,7 @@ try:
 
 except Exception as e:
     print(f"Startup Error: {e}")
+    vs = None
 
 @router.post("/generate", response_model=GenerateResponse)
 async def generate_content(
@@ -59,21 +58,22 @@ async def generate_content(
 
     print(f"\n🚀 GENERATION REQUEST")
     print(f"Topic: {request.topic}")
-    # We now print whatever came in the tone field (standard OR custom)
-    print(f"Tone/Style sent: '{request.tone}'") 
+    print(f"User: {user['uid']}")
 
     try:
-        relevant_docs = retriever.invoke(request.topic)
+        relevant_docs = []
+        if vs:
+            retriever = vs.get_retriever(namespace=user['uid'], k=5)
+            relevant_docs = retriever.invoke(request.topic)
+        
         context_text = "\n\n".join([d.page_content for d in relevant_docs])
         
-        # --- DETAILED TEMPLATE ---
-        # We instruct the AI to handle 'tone' intelligently.
         template = """
         You are an expert AI content creator.
         
-        === RETRIEVED CONTEXT (May be irrelevant) ===
+        === RETRIEVED CONTEXT (From User's Knowledge Base) ===
         {context}
-        =============================================
+        ======================================================
         
         USER REQUEST:
         Topic: {topic}
@@ -85,29 +85,26 @@ async def generate_content(
         STRICT INSTRUCTIONS:
         1. **IF the requested Format is 'LLM System Prompt' or 'AI Prompt'**:
            - Your task is to act as an Elite Prompt Engineer.
-           - DO NOT write the actual content (like a blog or email). 
-           - INSTEAD, write a highly detailed, sophisticated SYSTEM PROMPT that the user can paste into another AI (like ChatGPT/Claude) to get that content.
-           - Include sections for: Persona, Context, Goal, Step-by-Step Instructions, and Constraints.
+           - DO NOT write the actual content. 
+           - Write a system prompt.
            
         2. **IF the requested Format is 'Midjourney Image Prompt'**:
            - Output a list of 3-5 highly descriptive image prompts.
-           - Include parameters like --ar 16:9, --v 6.0, photorealistic, cinematic lighting.
            
-        3. **FOR ALL OTHER FORMATS (Blog, Tweet, Email, etc.)**:
+        3. **FOR ALL OTHER FORMATS**:
            - Write the actual content in {language}.
-           - Structure it according to the format (e.g., subject lines for emails).
+           - Structure it accordingly.
         
-        4. **CRITICAL: HANDLING TONE & STYLE**:
-           - The 'Tone / Style Description' provided above is dynamic.
-           - **Case A (Standard):** If it is a simple adjective (e.g., "Professional", "Witty"), simply adopt that tone.
-           - **Case B (Custom Voice):** If it is a sentence, a persona description (e.g., "Speak like a Pirate"), or a text sample, you must **MIMIC** that persona, vocabulary, and sentence structure exactly. 
-           - **Priority:** The Custom Voice instruction always takes precedence over general writing rules.
+        4. **Handling Tone**:
+           - If a custom persona is provided in 'Tone', MIMIC it exactly.
+           - Otherwise, use the adjective provided.
         
-        5. Analyze the 'RETRIEVED CONTEXT'. Use it only if it adds factual value.
+        5. **Context Usage**:
+           - Use the 'RETRIEVED CONTEXT' to add factual accuracy and specific company details.
+           - If the context is empty or irrelevant, ignore it.
 
-        6. **NO PREAMBLE OR OUTRO**: Do not say "Here is your content" or "I hope this helps."
-        7. **NO DELIMITERS**: Do not use horizontal rules (---) or extra symbols to separate your response.
-        8. **DIRECT OUTPUT**: Start immediately with the content (e.g., the Title or the first paragraph).
+        6. **Formatting**:
+           - NO PREAMBLE. Start directly with the content.
         """
         
         prompt = ChatPromptTemplate.from_template(template)
@@ -122,25 +119,15 @@ async def generate_content(
             "language": request.language
         })
 
-        # --- CALCULATE ANALYTICS ---
         word_count = len(result.split())
-        reading_time = max(1, round(word_count / 200)) # Avg speed 200 wpm
-        
-        # Flesch Reading Ease: 0-100 (Higher is easier)
-        # 90-100: Very Easy (5th grade)
-        # 60-70: Standard (8th-9th grade)
-        # 0-30: Very Confusing (College grad)
+        reading_time = max(1, round(word_count / 200)) 
         readability = textstat.flesch_reading_ease(result)
         
-        # Sentiment Analysis
         blob = TextBlob(result) 
         polarity = blob.sentiment.polarity
-        if polarity > 0.1: 
-            sentiment = "Positive"
-        elif polarity < -0.1: 
-            sentiment = "Negative"
-        else: 
-            sentiment = "Neutral"
+        if polarity > 0.1: sentiment = "Positive"
+        elif polarity < -0.1: sentiment = "Negative"
+        else: sentiment = "Neutral"
 
         analytics_obj = AnalyticsData(
             word_count=word_count,
@@ -149,7 +136,6 @@ async def generate_content(
             sentiment=sentiment
         )
 
-        # Save to History
         doc_ref = db.collection("generations").document()
         doc_ref.set({
             "uid": user["uid"],     

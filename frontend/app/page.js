@@ -6,8 +6,9 @@ import InputForm from "@/components/InputForm";
 import ResultSection from "@/components/ResultSection";
 import LoadingSection from "@/components/LoadingSection";
 import HistoryList from "@/components/HistoryList"; 
+import KnowledgeUpload from "@/components/KnowledgeUpload"; 
 import { useAuth } from "@/context/AuthContext";
-import { Sparkles, History, PenTool, LayoutTemplate } from "lucide-react";
+import { Sparkles, History, PenTool, LayoutTemplate, Brain } from "lucide-react";
 
 export default function Home() {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
@@ -24,7 +25,6 @@ export default function Home() {
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
-      
       if (currentScrollY < 10) {
         setIsNavbarVisible(true);
       } else if (currentScrollY > lastScrollY.current) {
@@ -32,10 +32,8 @@ export default function Home() {
       } else {
         setIsNavbarVisible(true);
       }
-
       lastScrollY.current = currentScrollY;
     };
-
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
@@ -49,6 +47,7 @@ export default function Home() {
     setLastRequest(formData);
     setLoading(true);
     setResultData(null); 
+    setActiveTab("generate"); 
 
     try {
       const token = await user.getIdToken();
@@ -112,6 +111,18 @@ export default function Home() {
               >
                 <PenTool size={16} /> Generator
               </button>
+
+              <button
+                onClick={() => setActiveTab("knowledge")}
+                className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 ${
+                  activeTab === "knowledge" 
+                    ? "bg-white text-indigo-600 shadow-sm ring-1 ring-black/5" 
+                    : "text-slate-500 hover:text-slate-900 hover:bg-slate-200/50"
+                }`}
+              >
+                <Brain size={16} /> Knowledge
+              </button>
+
               <button
                 onClick={() => setActiveTab("history")}
                 className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold transition-all duration-300 ${
@@ -128,7 +139,8 @@ export default function Home() {
 
         {user ? (
           <div className="mx-auto max-w-7xl">
-            {activeTab === "generate" ? (
+            
+            {activeTab === "generate" && (
               <div className="animate-in fade-in slide-in-from-bottom-6 duration-700 ease-out">
                 <div className="text-center mb-10">
                   <h2 className="text-4xl font-extrabold text-slate-900 tracking-tight sm:text-5xl mb-4">
@@ -156,11 +168,20 @@ export default function Home() {
                   </div>
                 )}
               </div>
-            ) : (
+            )}
+
+            {activeTab === "knowledge" && (
+              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <KnowledgeUpload />
+              </div>
+            )}
+
+            {activeTab === "history" && (
               <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <HistoryList />
               </div>
             )}
+
           </div>
         ) : (
           <div className="mt-20 flex flex-col items-center justify-center text-center animate-in zoom-in-95 duration-700">

@@ -63,10 +63,14 @@ class VectorService:
             except Exception as e:
                 print(f"Error creating index: {e}")
 
-    def add_texts(self, texts: list[str]):
-        print(f"Adding {len(texts)} documents to Pinecone...")
-        self.vector_store.add_texts(texts)
+    def add_texts(self, texts: list[str], namespace: str):
+        """Adds text chunks to a specific user's namespace."""
+        print(f"Adding {len(texts)} documents to namespace: {namespace}...")
+        self.vector_store.add_texts(texts, namespace=namespace)
         print("Done!")
 
-    def search(self, query, k=3):
-        return self.vector_store.similarity_search(query, k=k)
+    def get_retriever(self, namespace: str, k=3):
+        """Returns a retriever scoped to a specific user's namespace."""
+        return self.vector_store.as_retriever(
+            search_kwargs={"k": k, "namespace": namespace}
+        )

@@ -32,7 +32,7 @@ if not firebase_admin._apps:
         if firebase_val:
             print(f"   Value causing error (first 50 chars): {firebase_val[:50]}...")
 
-from routes import generate, images, history
+from routes import generate, images, history, knowledge
 
 app = FastAPI()
 
@@ -46,6 +46,7 @@ app.add_middleware(
 app.include_router(generate.router, prefix="/api")
 app.include_router(images.router, prefix="/api")
 app.include_router(history.router, prefix="/api")
+app.include_router(knowledge.router, prefix="/api")
 
 @app.get("/")
 def read_root():
