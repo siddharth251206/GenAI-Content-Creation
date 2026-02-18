@@ -132,6 +132,7 @@ export default function InputForm({ onGenerate, loading }) {
                     <option value="blog post">SEO Blog Post</option>
                     <option value="newsletter">Email Newsletter</option>
                     <option value="case study">Case Study</option>
+                    <option value="Press Release">Press Release</option>
                 </optgroup>
                 <optgroup label="Business">
                     <option value="cold email">Cold Email / Sales Pitch</option>
