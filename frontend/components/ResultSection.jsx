@@ -17,10 +17,17 @@ import {
   FileText,
   FileCode,
   ChevronDown,
-  BarChart3, // New Import
-  Clock,     // New Import
-  AlignLeft, // New Import
-  Activity   // New Import
+  BarChart3, 
+  Clock,     
+  AlignLeft, 
+  Activity,
+  Linkedin, 
+  Mail,     
+  Share2,
+  Twitter,
+  Scissors, 
+  Wand2,    
+  Eraser    
 } from "lucide-react";
 
 const CustomEditor = dynamic(
@@ -42,7 +49,6 @@ const exportStyles = `
   ul { list-style-type: disc; padding-left: 1.2em; margin-bottom: 1em; margin-top: 0.5em; }
   li { margin-bottom: 0.25em; padding-left: 0.2em; color: #475569; }
   blockquote { border-left: 3px solid #6366f1; background: #f8fafc; padding: 0.75em 1em; margin: 1.5em 0; font-style: italic; color: #475569; border-radius: 4px; }
-  /* Ensure images fit and are visible */
   img { max-width: 100%; height: auto; border-radius: 8px; margin: 10px 0; display: block; }
   figure { margin: 0; padding: 0; }
   strong { color: #1e293b; font-weight: 700; }
@@ -79,12 +85,17 @@ export default function ResultSection({ data, onRegenerate }) {
   const [activeAction, setActiveAction] = useState(null);
   const [isCopied, setIsCopied] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [showRegenMenu, setShowRegenMenu] = useState(false); 
   const exportMenuRef = useRef(null);
-  
-  // Analytics Data from Backend
-  const stats = data.analytics || { word_count: 0, reading_time: 0, readability_score: 0, sentiment: "N/A" };
+  const regenMenuRef = useRef(null); 
 
+  const stats = data.analytics || { word_count: 0, reading_time: 0, readability_score: 0, sentiment: "N/A" };
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+
+  const contentType = (data.content_type || "").toLowerCase();
+  const showLinkedIn = contentType.includes("linkedin");
+  const showGmail = contentType.includes("email") || contentType.includes("newsletter") || contentType.includes("pitch");
+  const showTwitter = contentType.includes("tweet") || contentType.includes("thread");
 
   const getReadabilityColor = (score) => {
     if (score >= 80) return "text-green-600 bg-green-50 border-green-200";
@@ -118,6 +129,9 @@ export default function ResultSection({ data, onRegenerate }) {
     function handleClickOutside(event) {
       if (exportMenuRef.current && !exportMenuRef.current.contains(event.target)) {
         setShowExportMenu(false);
+      }
+      if (regenMenuRef.current && !regenMenuRef.current.contains(event.target)) {
+        setShowRegenMenu(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -193,6 +207,60 @@ export default function ResultSection({ data, onRegenerate }) {
     }
   };
 
+  const handleFullRefine = async (actionType, instruction) => {
+    if (!editorInstance) return;
+    const fullText = editorInstance.getData();
+    if (!fullText) return;
+
+    setShowRegenMenu(false); 
+    setActiveAction("full_regen"); 
+
+    try {
+        const enhancedInstruction = `${instruction}. IMPORTANT: Preserve the original structural formatting (HTML tags, lists, headers) exactly. Return the full updated HTML.`;
+        
+        const res = await fetch(`${API_URL}/api/regenerate`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ selected_text: fullText, instruction: enhancedInstruction }),
+        });
+        
+        const result = await res.json();
+        const formattedHtml = formatMarkdown(result.updated_text);
+        editorInstance.setData(formattedHtml);
+    } catch (err) {
+        console.error(err);
+        alert("Failed to refine text. Please try again.");
+    } finally {
+        setActiveAction(null);
+    }
+  };
+
+  const handleShare = (platform) => {
+    const tempDiv = document.createElement("div");
+    tempDiv.innerHTML = editorData;
+    const plainText = tempDiv.innerText || tempDiv.textContent || "";
+    const encodedText = encodeURIComponent(plainText);
+    const encodedTopic = encodeURIComponent(data.topic || "My Content");
+
+    let url = "";
+
+    if (platform === 'linkedin') {
+        url = `https://www.linkedin.com/feed/?shareActive=true&text=${encodedText}`;
+    } else if (platform === 'gmail') {
+        url = `https://mail.google.com/mail/?view=cm&fs=1&su=${encodedTopic}&body=${encodedText}`;
+    } else if (platform === 'twitter') {
+        url = `https://twitter.com/intent/tweet?text=${encodedText}`;
+    }
+
+    if (url) {
+        const width = 800;
+        const height = 600;
+        const left = window.screen.width / 2 - width / 2;
+        const top = window.screen.height / 2 - height / 2;
+        window.open(url, '_blank', `width=${width},height=${height},top=${top},left=${left}`);
+    }
+  };
+
   const handleCopy = () => {
     const tempDiv = document.createElement("div");
     tempDiv.innerHTML = editorData;
@@ -202,7 +270,6 @@ export default function ResultSection({ data, onRegenerate }) {
     setTimeout(() => { setIsCopied(false); }, 2500);
   };
 
-  
   const downloadFile = (blob, filename) => {
     const element = document.createElement("a");
     element.href = URL.createObjectURL(blob);
@@ -214,42 +281,16 @@ export default function ResultSection({ data, onRegenerate }) {
   };
 
   const handleExportHTML = () => {
-    const fullHtml = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <title>Exported Content</title>
-          <style>${exportStyles}</style>
-        </head>
-        <body>
-          ${editorData}
-        </body>
-      </html>
-    `;
+    const fullHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Exported Content</title><style>${exportStyles}</style></head><body>${editorData}</body></html>`;
     const file = new Blob([fullHtml], {type: 'text/html'});
     downloadFile(file, "generated-content.html");
   };
 
   const handleExportDOCX = () => {
-    const preHtml = `
-      <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-      <head>
-        <meta charset='utf-8'>
-        <title>Export</title>
-        <style>
-          ${exportStyles}
-          body { font-family: Arial, sans-serif; }
-        </style>
-      </head>
-      <body>
-    `;
+    const preHtml = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Export</title><style>${exportStyles} body { font-family: Arial, sans-serif; }</style></head><body>`;
     const postHtml = "</body></html>";
     const html = preHtml + editorData + postHtml;
-    
-    const blob = new Blob(['\ufeff', html], {
-        type: 'application/msword'
-    });
+    const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
     downloadFile(blob, 'generated-content.doc');
   };
 
@@ -260,7 +301,6 @@ export default function ResultSection({ data, onRegenerate }) {
     iframe.style.height = '0px';
     iframe.style.border = 'none';
     document.body.appendChild(iframe);
-    
     const doc = iframe.contentWindow.document;
     doc.write('<html><head><title>Print</title>');
     doc.write(`<style>${exportStyles}</style>`); 
@@ -268,32 +308,21 @@ export default function ResultSection({ data, onRegenerate }) {
     doc.write(editorData);
     doc.write('</body></html>');
     doc.close();
-
     const printContent = () => {
       iframe.contentWindow.focus();
       iframe.contentWindow.print();
-      
       setTimeout(() => {
-        if (document.body.contains(iframe)) {
-          document.body.removeChild(iframe);
-        }
+        if (document.body.contains(iframe)) document.body.removeChild(iframe);
         setShowExportMenu(false);
       }, 1000);
     };
-
     const images = iframe.contentDocument.getElementsByTagName('img');
     if (images.length > 0) {
       const loadPromises = Array.from(images).map(img => {
         if (img.complete) return Promise.resolve();
-        return new Promise(resolve => {
-          img.onload = resolve;
-          img.onerror = resolve; 
-        });
+        return new Promise(resolve => { img.onload = resolve; img.onerror = resolve; });
       });
-
-      Promise.all(loadPromises).then(() => {
-        setTimeout(printContent, 100);
-      });
+      Promise.all(loadPromises).then(() => setTimeout(printContent, 100));
     } else {
       printContent();
     }
@@ -304,7 +333,6 @@ export default function ResultSection({ data, onRegenerate }) {
       
       <div className="flex-1 flex flex-col bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden relative min-h-[500px]">
         
-        {/* Editor Toolbar Header */}
         <div className="flex items-center justify-between px-4 py-3 md:px-6 md:py-3 border-b border-slate-100 bg-white/80 backdrop-blur-sm z-10 sticky top-0">
           <div className="flex items-center gap-2">
              <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)] animate-pulse" />
@@ -340,7 +368,6 @@ export default function ResultSection({ data, onRegenerate }) {
           </div>
         </div>
 
-        {/* --- NEW: ANALYTICS DASHBOARD --- */}
         <div className="grid grid-cols-2 md:grid-cols-4 border-b border-slate-100 divide-x divide-slate-100 bg-white">
             <div className="p-3 flex flex-col items-center justify-center text-center">
                 <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
@@ -372,7 +399,6 @@ export default function ResultSection({ data, onRegenerate }) {
                 <span className="text-sm font-bold text-slate-700 capitalize">{stats.sentiment}</span>
             </div>
         </div>
-        {/* -------------------------------- */}
 
         <div className="flex-1 overflow-y-auto relative">
           <CustomEditor
@@ -390,33 +416,45 @@ export default function ResultSection({ data, onRegenerate }) {
            <button 
              onClick={handleCopy} 
              disabled={isCopied}
-             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all duration-300 ${isCopied ? "bg-emerald-500/20 text-emerald-300" : "hover:bg-white/10"}`}
+             className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all duration-300 ${isCopied ? "bg-emerald-500/20 text-emerald-300" : "hover:bg-white/10"}`}
+             title="Copy Text"
            >
-             {isCopied ? <><Check size={15} /> Copied</> : <><Copy size={15} /> Copy</>}
+             {isCopied ? <Check size={16} /> : <Copy size={16} />}
            </button>
 
            <div className="w-px h-4 bg-white/20"></div>
+
+           {showLinkedIn && (
+             <button onClick={() => handleShare('linkedin')} className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs md:text-sm font-semibold hover:bg-[#0077b5] transition-colors" title="Post to LinkedIn">
+               <Linkedin size={16} /> <span className="hidden sm:inline">LinkedIn</span>
+             </button>
+           )}
+           {showGmail && (
+             <button onClick={() => handleShare('gmail')} className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs md:text-sm font-semibold hover:bg-red-600 transition-colors" title="Send via Gmail">
+               <Mail size={16} /> <span className="hidden sm:inline">Gmail</span>
+             </button>
+           )}
+           {showTwitter && (
+             <button onClick={() => handleShare('twitter')} className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs md:text-sm font-semibold hover:bg-sky-500 transition-colors" title="Tweet">
+               <Twitter size={16} /> <span className="hidden sm:inline">Tweet</span>
+             </button>
+           )}
            
+           {(showLinkedIn || showGmail || showTwitter) && <div className="w-px h-4 bg-white/20"></div>}
+
            <div className="relative" ref={exportMenuRef}>
              <button 
                 onClick={() => setShowExportMenu(!showExportMenu)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs md:text-sm font-semibold transition ${showExportMenu ? "bg-white/20 text-white" : "hover:bg-white/10"}`}
+                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs md:text-sm font-semibold transition ${showExportMenu ? "bg-white/20 text-white" : "hover:bg-white/10"}`}
              >
-               <Download size={15} /> Export <ChevronDown size={12} className={`transition-transform ${showExportMenu ? "rotate-180" : ""}`} />
+               <Download size={16} />
              </button>
-
              {showExportMenu && (
                <div className="absolute bottom-full left-0 mb-2 w-48 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden animate-in fade-in slide-in-from-bottom-2 z-50">
                  <div className="p-1">
-                   <button onClick={handleExportPDF} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-indigo-600 rounded-lg transition-colors text-left">
-                     <Printer size={14} /> Save as PDF
-                   </button>
-                   <button onClick={handleExportDOCX} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600 rounded-lg transition-colors text-left">
-                     <FileText size={14} /> Export to Word
-                   </button>
-                   <button onClick={handleExportHTML} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-orange-600 rounded-lg transition-colors text-left">
-                     <FileCode size={14} /> Export as HTML
-                   </button>
+                   <button onClick={handleExportPDF} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-indigo-600 rounded-lg transition-colors text-left"><Printer size={14} /> Save as PDF</button>
+                   <button onClick={handleExportDOCX} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600 rounded-lg transition-colors text-left"><FileText size={14} /> Export to Word</button>
+                   <button onClick={handleExportHTML} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-orange-600 rounded-lg transition-colors text-left"><FileCode size={14} /> Export as HTML</button>
                  </div>
                </div>
              )}
@@ -424,12 +462,50 @@ export default function ResultSection({ data, onRegenerate }) {
            
            <div className="w-px h-4 bg-white/20"></div>
            
-           <button onClick={onRegenerate} className="flex items-center gap-2 px-4 py-2 hover:bg-white/10 rounded-xl text-xs md:text-sm font-semibold transition text-indigo-300 hover:text-indigo-200">
-             <RotateCw size={15} /> <span className="hidden sm:inline">Regenerate</span>
-           </button>
+           <div className="relative" ref={regenMenuRef}>
+             <button 
+               onClick={() => setShowRegenMenu(!showRegenMenu)} 
+               className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs md:text-sm font-semibold transition ${showRegenMenu ? "bg-white/20 text-white" : "hover:bg-white/10"} text-indigo-300 hover:text-indigo-200`} 
+               title="Regenerate Options"
+               disabled={!!activeAction}
+             >
+               {activeAction === "full_regen" ? <RotateCw size={16} className="animate-spin"/> : <RotateCw size={16} />}
+               <ChevronDown size={12} className={`transition-transform ${showRegenMenu ? "rotate-180" : ""}`} />
+             </button>
+
+             {showRegenMenu && (
+               <div className="absolute bottom-full right-0 mb-2 w-52 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden animate-in fade-in slide-in-from-bottom-2 z-50">
+                 <div className="p-1">
+                   <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Refine Content</div>
+                   
+                   <button onClick={() => { setShowRegenMenu(false); onRegenerate(); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-indigo-600 rounded-lg transition-colors text-left">
+                     <RefreshCw size={14} /> Retry (Original Prompt)
+                   </button>
+                   
+                   <div className="h-px bg-slate-100 my-1"></div>
+
+                   <button onClick={() => handleFullRefine('shorten', 'Make the entire text shorter and more concise')} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-emerald-600 rounded-lg transition-colors text-left">
+                     <Scissors size={14} /> Make Shorter
+                   </button>
+
+                   <button onClick={() => handleFullRefine('expand', 'Expand the text with more details and depth')} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600 rounded-lg transition-colors text-left">
+                     <Maximize2 size={14} /> Make Longer
+                   </button>
+
+                   <button onClick={() => handleFullRefine('simplify', 'Simplify the language to be easily understood (5th grade level)')} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-orange-600 rounded-lg transition-colors text-left">
+                     <Eraser size={14} /> Simplify (Readability)
+                   </button>
+                   
+                   <button onClick={() => handleFullRefine('grammar', 'Fix all grammar and spelling errors without changing the tone')} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-purple-600 rounded-lg transition-colors text-left">
+                     <Wand2 size={14} /> Fix Grammar
+                   </button>
+                 </div>
+               </div>
+             )}
+           </div>
         </div>
       </div>
-
+      
       <div className="w-full lg:w-80 flex flex-col bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden h-auto lg:h-full shrink-0">
         <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/50 flex flex-col gap-1">
           <div className="flex items-center gap-2 text-slate-700">
@@ -509,13 +585,11 @@ export default function ResultSection({ data, onRegenerate }) {
           z-index: 50 !important;
           border-bottom: 1px solid rgba(0,0,0,0.05) !important;
         }
-
-        /* --- HEADINGS (Matches Export Styles) --- */
+        
         .ck-editor__editable h1 { font-size: 2.25em; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 0.3em; margin-top: 0; color: #0f172a; line-height: 1.1; }
         .ck-editor__editable h2 { font-size: 1.5em; font-weight: 700; margin-top: 1.5em; margin-bottom: 0.4em; color: #1e293b; letter-spacing: -0.02em; }
         .ck-editor__editable h3 { font-size: 1.25em; font-weight: 600; margin-top: 1.25em; margin-bottom: 0.25em; color: #4338ca; }
         .ck-editor__editable h4 { font-size: 0.85em; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 1.25em; margin-bottom: 0.25em; color: #64748b; }
-
         .ck-editor__editable p { margin-bottom: 1em; }
         .ck-editor__editable ul { list-style-type: disc; padding-left: 1.2em; margin-bottom: 1em; margin-top: 0.5em; }
         .ck-editor__editable li { margin-bottom: 0.25em; padding-left: 0.2em; color: #475569; }
@@ -523,4 +597,4 @@ export default function ResultSection({ data, onRegenerate }) {
       `}</style>
     </section>
   );
-} 
+}

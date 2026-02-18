@@ -147,7 +147,7 @@ async def generate_content(
             "created_at": datetime.datetime.now(datetime.timezone.utc)
         })
 
-        return GenerateResponse(answer=result, topic=request.topic, analytics=analytics_obj)
+        return GenerateResponse(answer=result, topic=request.topic,content_type=request.content_type, analytics=analytics_obj)
 
     except Exception as e:
         print(e)

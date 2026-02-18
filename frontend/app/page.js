@@ -192,7 +192,7 @@ export default function Home() {
               Welcome to ContentFlow Studio
             </h2>
             <p className="mb-10 max-w-lg text-lg text-slate-600 leading-relaxed">
-              Sign in to unlock the power of AI content creation. Generate blogs, social posts, and emails in seconds.
+              Sign in to unlock the power of AI content creation. Generate blogs, social posts, emails and many things in seconds.
             </p>
           </div>
         )}

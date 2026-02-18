@@ -18,6 +18,7 @@ class AnalyticsData(BaseModel):
 class GenerateResponse(BaseModel):
     answer: str
     topic: str 
+    content_type: Optional[str] = "blog post"
     analytics: Optional[AnalyticsData] = None
 
 class HistoryItem(BaseModel):
